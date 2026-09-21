@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Rinq",
+    "slug": "rinq-app",
+    "version": "1.0.0",
+    "scheme": "rinq",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0B0D"
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ALWAYS",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.rinq.mobile"
+    },
+    "android": {
+      "package": "app.rinq.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B0B0D"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "apiUrl": null
+    },
+    "plugins": [
+      "expo-status-bar"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+# Postgres local para o Rinq.app — `docker compose up -d`
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rinq-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rinq
+      POSTGRES_PASSWORD: rinq
+      POSTGRES_DB: rinq
+    ports:
+      - '5432:5432'
+    volumes:
+      - rinq-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U rinq -d rinq']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  rinq-pgdata:

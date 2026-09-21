@@ -1,0 +1,11 @@
+node_modules
+.env
+dist
+generated
+.expo
+.DS_Store
+
+# AI agent tool configs/skill docs (not app code)
+.claude/
+.agents/
+.windsurf/
