@@ -1,0 +1,131 @@
+// Rinq.app — schema agnóstico de temporada (multitenancy visual).
+// As mesmas tabelas atendem MMA Humano e Galos-Robô: o que muda é o
+// seasonType e a leitura semântica dos campos `spec*` no frontend.
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Temporada ativa. O backend nunca muda de schema entre temporadas.
+enum SeasonType {
+  HUMAN_MMA
+  ROBOT_ROOSTER
+}
+
+enum BetStatus {
+  PENDING
+  WON
+  LOST
+  VOID
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  /// Moeda fictícia. RF01: todo apostador nasce com 1500.
+  virtualCoins Int      @default(1500)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bets Bet[]
+
+  @@map("users")
+}
+
+model Competitor {
+  id String @id @default(uuid())
+
+  name String
+  /// MMA: academia | Galos-Robô: laboratório.
+  team String
+  /// MMA: categoria de peso | Galos-Robô: classe de chassi.
+  specWeight String
+  /// MMA: estilo de luta | Galos-Robô: armamento principal.
+  specStyle String
+
+  wins   Int @default(0)
+  losses Int @default(0)
+  draws  Int @default(0)
+
+  seasonType SeasonType
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  fightsAsA Fight[] @relation("FightCompetitorA")
+  fightsAsB Fight[] @relation("FightCompetitorB")
+  fightsWon Fight[] @relation("FightWinner")
+  betsOn    Bet[]   @relation("BetChosenWinner")
+
+  @@index([seasonType])
+  @@map("competitors")
+}
+
+model Fight {
+  id String @id @default(uuid())
+
+  competitorAId String
+  competitorBId String
+  competitorA   Competitor @relation("FightCompetitorA", fields: [competitorAId], references: [id])
+  competitorB   Competitor @relation("FightCompetitorB", fields: [competitorBId], references: [id])
+
+  /// Odds congeladas no momento da criação do card (RF04).
+  oddA Float
+  oddB Float
+
+  seasonType  SeasonType
+  scheduledAt DateTime   @default(now())
+  isFinished  Boolean    @default(false)
+  finishedAt  DateTime?
+
+  /// null + isFinished = empate (todas as apostas são estornadas).
+  winnerId String?
+  winner   Competitor? @relation("FightWinner", fields: [winnerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bets Bet[]
+
+  @@index([seasonType, isFinished])
+  @@index([scheduledAt])
+  @@map("fights")
+}
+
+model Bet {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fightId String
+  fight   Fight  @relation(fields: [fightId], references: [id], onDelete: Cascade)
+
+  chosenWinnerId String
+  chosenWinner   Competitor @relation("BetChosenWinner", fields: [chosenWinnerId], references: [id])
+
+  amount           Int
+  /// amount * odd escolhida, calculado pelo OddsService.
+  potentialPayout  Float
+  /// Odd registrada na efetivação — auditoria imutável.
+  oddAtPlacement   Float
+  status           BetStatus @default(PENDING)
+  settledAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([fightId, status])
+  @@map("bets")
+}
