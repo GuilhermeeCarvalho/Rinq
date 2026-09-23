@@ -10,6 +10,8 @@ import { CompetitorModel } from '../src/models/CompetitorModel.js'
 import { FightModel } from '../src/models/FightModel.js'
 import { UserModel } from '../src/models/UserModel.js'
 import type { CreateCompetitorInput } from '../src/models/CompetitorModel.js'
+import { hashPassword } from '../src/lib/password.js'
+import { UserRole } from '../generated/prisma/enums.js'
 
 type SeedCompetitor = Omit<CreateCompetitorInput, 'seasonType'>
 
@@ -38,9 +40,9 @@ const ROBOT_ROSTER: SeedCompetitor[] = [
 ]
 
 const SEED_USERS = [
-  { name: 'Apostador Demo', email: 'demo@rinq.app' },
-  { name: 'Marina Vasques', email: 'marina@rinq.app' },
-  { name: 'Téo Almeida', email: 'teo@rinq.app' },
+  { name: 'Apostador Demo', email: 'demo@rinq.app', password: 'player123' },
+  { name: 'Marina Vasques', email: 'marina@rinq.app', password: 'player123' },
+  { name: 'Téo Almeida', email: 'teo@rinq.app', password: 'player123' },
 ]
 
 /** Limpa na ordem inversa das dependências. */
@@ -86,10 +88,18 @@ async function main(): Promise<void> {
   await reset()
 
   console.log('👤 Criando apostadores (1500 moedas cada)...')
-  for (const user of SEED_USERS) {
-    const created = await UserModel.create(user)
+  for (const { password, ...user } of SEED_USERS) {
+    const created = await UserModel.create({ ...user, passwordHash: await hashPassword(password), role: UserRole.PLAYER })
     console.log(`  ${created.name} <${created.email}> — ${created.virtualCoins} moedas — id=${created.id}`)
   }
+
+  const admin = await UserModel.create({
+    name: 'Administrador Rinq',
+    email: process.env['ADMIN_EMAIL'] ?? 'admin@rinq.app',
+    passwordHash: await hashPassword(process.env['ADMIN_PASSWORD'] ?? 'admin12345'),
+    role: UserRole.ADMIN,
+  })
+  console.log(`  ${admin.name} <${admin.email}> — ADMIN — id=${admin.id}`)
 
   console.log('\n🥊 Temporada HUMAN_MMA')
   await seedSeason(SeasonType.HUMAN_MMA, MMA_ROSTER)

@@ -5,10 +5,13 @@ import { UserModel } from '../models/UserModel.js'
 import { UserView } from '../views/UserView.js'
 import { ConflictError, NotFoundError } from '../lib/errors.js'
 import { idParamSchema, parseOrThrow } from '../lib/validation.js'
+import { hashPassword } from '../lib/password.js'
+import { UserRole } from '../../generated/prisma/enums.js'
 
 const createUserSchema = z.object({
   name: z.string().trim().min(2, 'Nome muito curto.').max(80),
   email: z.email('E-mail inválido.'),
+  password: z.string().min(8, 'A senha deve ter pelo menos 8 caracteres.').max(128),
 })
 
 /** RF01 — cadastro de apostadores e consulta de carteira. */
@@ -22,7 +25,12 @@ export class UserController {
     }
 
     // O saldo inicial de 1500 moedas é aplicado pelo default do schema.
-    const user = await UserModel.create(body)
+    const user = await UserModel.create({
+      name: body.name,
+      email: body.email,
+      passwordHash: await hashPassword(body.password),
+      role: UserRole.PLAYER,
+    })
     return reply.status(201).send(UserView.render(user))
   }
 

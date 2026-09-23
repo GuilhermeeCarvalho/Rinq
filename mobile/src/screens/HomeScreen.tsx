@@ -88,7 +88,6 @@ export function HomeScreen() {
       setBetError(null)
       try {
         const result = await api.placeBet({
-          userId: user.id,
           fightId: selection.fight.id,
           chosenWinnerId: selection.competitor.id,
           amount,

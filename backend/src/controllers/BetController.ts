@@ -4,9 +4,11 @@ import { BetModel } from '../models/BetModel.js'
 import { BetView } from '../views/BetView.js'
 import { NotFoundError } from '../lib/errors.js'
 import { idParamSchema, parseOrThrow } from '../lib/validation.js'
+import { requireAuth } from '../lib/auth.js'
+import { ForbiddenError } from '../lib/errors.js'
+import { UserRole } from '../../generated/prisma/enums.js'
 
 const placeBetSchema = z.object({
-  userId: z.uuid(),
   fightId: z.uuid(),
   chosenWinnerId: z.uuid(),
   amount: z
@@ -16,26 +18,26 @@ const placeBetSchema = z.object({
     .max(1_000_000),
 })
 
-const userParamSchema = z.object({ userId: z.uuid('Identificador inválido.') })
-
 /** RF05 — efetivação e consulta de apostas. */
 export class BetController {
   static async create(request: FastifyRequest, reply: FastifyReply) {
     const body = parseOrThrow(placeBetSchema, request.body)
-    const { bet, balance } = await BetModel.place(body)
+    const { bet, balance } = await BetModel.place({ ...body, userId: request.user.sub })
     return reply.status(201).send(BetView.renderPlacement(bet, balance))
   }
 
   static async show(request: FastifyRequest, reply: FastifyReply) {
+    await requireAuth(request, reply)
     const { id } = parseOrThrow(idParamSchema, request.params)
     const bet = await BetModel.findById(id)
     if (!bet) throw new NotFoundError('Aposta')
+    if (bet.userId !== request.user.sub && request.user.role !== UserRole.ADMIN) throw new ForbiddenError()
     return reply.send(BetView.render(bet))
   }
 
   static async listByUser(request: FastifyRequest, reply: FastifyReply) {
-    const { userId } = parseOrThrow(userParamSchema, request.params)
-    const bets = await BetModel.listByUser(userId)
+    await requireAuth(request, reply)
+    const bets = await BetModel.listByUser(request.user.sub)
 
     return reply.send({
       total: bets.length,

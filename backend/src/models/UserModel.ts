@@ -1,10 +1,13 @@
 import { prisma } from '../lib/prisma.js'
 import type { Db } from '../lib/prisma.js'
 import type { UserModel as UserRow } from '../../generated/prisma/models.js'
+import type { UserRole } from '../../generated/prisma/enums.js'
 
 export interface CreateUserInput {
   name: string
   email: string
+  passwordHash: string
+  role?: UserRole
   virtualCoins?: number
 }
 
@@ -15,6 +18,8 @@ export class UserModel {
       data: {
         name: input.name,
         email: input.email.toLowerCase(),
+        passwordHash: input.passwordHash,
+        ...(input.role === undefined ? {} : { role: input.role }),
         // O default de 1500 moedas vive no schema; só sobrescrevemos quando pedido.
         ...(input.virtualCoins === undefined ? {} : { virtualCoins: input.virtualCoins }),
       },

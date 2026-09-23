@@ -16,7 +16,8 @@
     "updates": {
       "enabled": true,
       "checkAutomatically": "ALWAYS",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/fae363c8-eeb9-4838-8214-6783de3d2c1e"
     },
     "runtimeVersion": {
       "policy": "appVersion"
@@ -38,10 +39,15 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiUrl": null
+      "apiUrl": {},
+      "eas": {
+        "projectId": "fae363c8-eeb9-4838-8214-6783de3d2c1e"
+      }
     },
     "plugins": [
-      "expo-status-bar"
-    ]
+      "expo-status-bar",
+      "expo-secure-store"
+    ],
+    "owner": "guilhermeecarvalho"
   }
 }

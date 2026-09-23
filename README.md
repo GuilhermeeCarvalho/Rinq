@@ -45,7 +45,8 @@ cd backend
 npm install
 cp .env.example .env        # já vem apontando para o banco do docker
 npx prisma migrate dev      # cria as tabelas
-npm run db:seed             # 3 apostadores + 16 competidores + 8 lutas
+npm run db:generate         # gera o cliente Prisma usado pela API
+npm run db:seed             # 3 players + 1 admin + 16 competidores + 8 lutas
 npm run dev                 # API em http://localhost:3333
 ```
 
@@ -68,10 +69,11 @@ npm start                   # abre o Expo — escaneie o QR Code com o Expo Go
 
 ### 4. Use o app
 
-1. O app lê `GET /season` e monta o tema da temporada ativa.
-2. Toque em uma **odd** para abrir a folha de aposta, escolha o valor e confirme.
-3. O saldo desconta na hora (débito atômico no backend).
-4. Toque no **selo da temporada** (topo direito) para pré-visualizar a outra temporada —
+1. Crie uma conta `PLAYER` ou entre com uma conta existente.
+2. O app lê `GET /season` e monta o tema da temporada ativa.
+3. Toque em uma **odd** para abrir a folha de aposta, escolha o valor e confirme.
+4. O saldo desconta na hora (débito atômico no backend).
+5. Toque no **selo da temporada** (topo direito) para pré-visualizar a outra temporada —
    o app inteiro troca de cara e de vocabulário na hora.
 
 ---
@@ -116,6 +118,18 @@ O app checa atualização no boot e ao voltar do background (`src/hooks/useOtaUp
 e mostra um banner "Nova temporada disponível" com o botão **Aplicar**.
 
 ---
+ ## Para testes do sistema foram criados alguns usuarios padrao
+
+ Admin:
+admin@rinq.app
+admin12345
+
+Players:
+demo@rinq.app
+marina@rinq.app
+teo@rinq.app
+
+Senha dos players: player123
 
 ## 📡 Endpoints
 
@@ -123,19 +137,27 @@ e mostra um banner "Nova temporada disponível" com o botão **Aplicar**.
 |---|---|---|
 | GET | `/health` | Status da API |
 | GET | `/season` | Temporada ativa (dirige o tema do app) — RF06 |
-| POST | `/users` | Cadastro de apostador (saldo 1500) — RF01 |
-| GET | `/users/me` | Apostador demo (MVP sem login) |
-| GET | `/users/:id` | Perfil e saldo |
-| GET | `/users/:userId/bets` | Apostas do usuário |
+| POST | `/auth/register` | Cadastro público; sempre cria `PLAYER` |
+| POST | `/auth/login` | Login de `PLAYER` ou `ADMIN`; devolve JWT |
+| GET | `/auth/me` | Usuário autenticado |
+| GET | `/users/me/bets` | Apostas do player autenticado |
 | GET | `/competitors?season=` | Catálogo de competidores — RF02 |
 | GET | `/competitors/:id` | Detalhe do competidor |
+| POST | `/competitors` | Cadastro de competidor; somente `ADMIN` |
 | GET | `/fights?season=&includeFinished=&take=` | Card de lutas — RF03 |
 | GET | `/fights/:id` | Detalhe da luta |
 | GET | `/fights/odds/preview?competitorAId=&competitorBId=` | Simulação de odds — RF04 |
-| POST | `/fights` | Cria confronto (odds calculadas no servidor) |
-| POST | `/fights/:id/finish` | Encerra a luta e liquida as apostas |
-| POST | `/bets` | Efetiva aposta — RF05 |
-| GET | `/bets/:id` | Detalhe da aposta |
+| POST | `/fights` | Cria confronto; somente `ADMIN` |
+| POST | `/fights/:id/finish` | Encerra e liquida; somente `ADMIN` |
+| POST | `/bets` | Efetiva aposta; somente `PLAYER` — RF05 |
+| GET | `/bets/:id` | Detalhe da própria aposta ou acesso `ADMIN` |
+
+### Papéis e permissões
+
+- `PLAYER`: consultar temporada, competidores e lutas; criar apostas; consultar apenas suas apostas.
+- `ADMIN`: cadastrar competidores, criar e encerrar lutas, consultar apostas e operar o painel administrativo.
+- O cadastro público nunca aceita `role`; uma conta só pode virar `ADMIN` por seed ou operação administrativa protegida.
+- O `userId` não é aceito para efetivar aposta: ele é obtido do JWT autenticado.
 
 Exemplos:
 

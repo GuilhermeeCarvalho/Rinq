@@ -34,3 +34,15 @@ export class ConflictError extends AppError {
     super(code, message, 409)
   }
 }
+
+export class UnauthorizedError extends AppError {
+  constructor(message = 'Autenticação necessária.') {
+    super('UNAUTHORIZED', message, 401)
+  }
+}
+
+export class ForbiddenError extends AppError {
+  constructor(message = 'Você não tem permissão para esta operação.') {
+    super('FORBIDDEN', message, 403)
+  }
+}

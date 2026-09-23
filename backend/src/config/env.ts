@@ -29,6 +29,7 @@ export const env = {
   seasonEndsAt: process.env['SEASON_ENDS_AT'] ?? null,
   easChannel: process.env['EAS_CHANNEL'] ?? null,
   demoUserEmail: process.env['DEMO_USER_EMAIL'] ?? 'demo@rinq.app',
+  jwtSecret: process.env['JWT_SECRET'] ?? 'rinq-development-secret-change-me',
 } as const
 
 export const isProduction = env.nodeEnv === 'production'

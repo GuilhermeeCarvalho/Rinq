@@ -16,6 +16,7 @@
   "dependencies": {
     "expo": "^57",
     "expo-constants": "~57.0.19",
+    "expo-secure-store": "~57.0.4",
     "expo-status-bar": "~57.0.1",
     "expo-updates": "~57.0.23",
     "react": "19.2.3",

@@ -38,6 +38,7 @@ export interface UserDTO {
   id: string
   name: string
   email: string
+  role: 'PLAYER' | 'ADMIN'
   virtualCoins: number
   createdAt: string
 }
@@ -57,6 +58,11 @@ export interface BetDTO {
 export interface PlaceBetResponse {
   bet: BetDTO
   balance: number
+}
+
+export interface AuthResponse {
+  token: string
+  user: UserDTO
 }
 
 /* ------------------------------------------------------------------ setup */
@@ -86,6 +92,11 @@ function resolveBaseUrl(): string {
 }
 
 export const API_BASE_URL = resolveBaseUrl()
+let authToken: string | null = null
+
+export function setAuthToken(token: string | null): void {
+  authToken = token
+}
 
 export class ApiError extends Error {
   constructor(
@@ -112,6 +123,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         ...(init?.headers ?? {}),
       },
     })
@@ -162,11 +174,16 @@ export const api = {
       season ? `/competitors?season=${season}` : '/competitors',
     ),
 
-  /** RF01 — apostador de demonstração (MVP sem login). */
-  getMe: () => request<UserDTO>('/users/me'),
+  login: (input: { email: string; password: string }) =>
+    request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(input) }),
+
+  register: (input: { name: string; email: string; password: string }) =>
+    request<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(input) }),
+
+  getMe: () => request<UserDTO>('/auth/me'),
 
   /** RF05 — efetivação da aposta. */
-  placeBet: (input: { userId: string; fightId: string; chosenWinnerId: string; amount: number }) =>
+  placeBet: (input: { fightId: string; chosenWinnerId: string; amount: number }) =>
     request<PlaceBetResponse>('/bets', { method: 'POST', body: JSON.stringify(input) }),
 
   getUserBets: (userId: string) =>

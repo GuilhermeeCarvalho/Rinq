@@ -1,9 +1,11 @@
 import type { UserModel as UserRow } from '../../generated/prisma/models.js'
+import type { UserRole } from '../../generated/prisma/enums.js'
 
 export interface UserDTO {
   id: string
   name: string
   email: string
+  role: UserRole
   virtualCoins: number
   createdAt: string
 }
@@ -15,6 +17,7 @@ export class UserView {
       id: user.id,
       name: user.name,
       email: user.email,
+      role: user.role,
       virtualCoins: user.virtualCoins,
       createdAt: user.createdAt.toISOString(),
     }
