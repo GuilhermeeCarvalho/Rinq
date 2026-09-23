@@ -36,6 +36,7 @@ export function buildServer(): FastifyInstance {
   app.post('/auth/login', AuthController.login)
   app.get('/auth/me', { preHandler: requireAuth }, AuthController.me)
   app.get('/users/me/bets', { preHandler: requireAuth }, BetController.listByUser)
+  app.get('/admin/bets', { preHandler: requireRole(UserRole.ADMIN) }, BetController.listAll)
 
   // RF02 — catálogo unificado de competidores
   app.get('/competitors', CompetitorController.list)

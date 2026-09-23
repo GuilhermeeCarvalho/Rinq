@@ -13,6 +13,7 @@ dicionário de termos via **EAS Update (OTA)** — sem gerar APK novo.
 rinq-app/
 ├── backend/    API REST MVC — Fastify + Prisma 7 + PostgreSQL
 ├── mobile/     App React Native — Expo SDK 54 + expo-updates
+├── admin/      Painel web React + Vite para administradores
 └── docker-compose.yml
 ```
 
@@ -75,6 +76,27 @@ npm start                   # abre o Expo — escaneie o QR Code com o Expo Go
 4. O saldo desconta na hora (débito atômico no backend).
 5. Toque no **selo da temporada** (topo direito) para pré-visualizar a outra temporada —
    o app inteiro troca de cara e de vocabulário na hora.
+
+### 5. Rode o painel administrativo
+
+Com o backend rodando, em outro terminal:
+
+```bash
+cd admin
+npm install
+npm run dev
+```
+
+Acesse <http://localhost:5173/> e entre com a conta `ADMIN` criada pelo seed:
+
+```text
+E-mail: admin@rinq.app
+Senha: admin12345
+```
+
+O painel permite consultar apostas, acompanhar o card, cadastrar competidores,
+criar lutas e registrar resultados. A API continua responsável pelas odds e pela
+liquidação atômica das apostas.
 
 ---
 
@@ -141,6 +163,7 @@ Senha dos players: player123
 | POST | `/auth/login` | Login de `PLAYER` ou `ADMIN`; devolve JWT |
 | GET | `/auth/me` | Usuário autenticado |
 | GET | `/users/me/bets` | Apostas do player autenticado |
+| GET | `/admin/bets` | Todas as apostas; somente `ADMIN` |
 | GET | `/competitors?season=` | Catálogo de competidores — RF02 |
 | GET | `/competitors/:id` | Detalhe do competidor |
 | POST | `/competitors` | Cadastro de competidor; somente `ADMIN` |

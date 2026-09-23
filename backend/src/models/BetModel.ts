@@ -6,6 +6,7 @@ import { OddsService } from '../services/OddsService.js'
 import { BusinessRuleError, NotFoundError, ValidationError } from '../lib/errors.js'
 
 export const betInclude = {
+  user: true,
   chosenWinner: true,
   fight: { include: { competitorA: true, competitorB: true } },
 } satisfies Prisma.BetInclude
@@ -33,6 +34,14 @@ export interface SettlementSummary {
 
 /** RF05 / RNF02 — apostas e liquidação financeira atômica. */
 export class BetModel {
+  static async listAll(db: Db = prisma): Promise<BetWithRelations[]> {
+    return db.bet.findMany({
+      include: betInclude,
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    })
+  }
+
   /**
    * Efetiva a aposta dentro de uma transação: valida a luta, congela a odd,
    * debita a carteira e grava o bilhete. Qualquer falha desfaz tudo.

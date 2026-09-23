@@ -4,7 +4,7 @@ import { BetModel } from '../models/BetModel.js'
 import { BetView } from '../views/BetView.js'
 import { NotFoundError } from '../lib/errors.js'
 import { idParamSchema, parseOrThrow } from '../lib/validation.js'
-import { requireAuth } from '../lib/auth.js'
+import { requireAuth, requireRole } from '../lib/auth.js'
 import { ForbiddenError } from '../lib/errors.js'
 import { UserRole } from '../../generated/prisma/enums.js'
 
@@ -20,6 +20,17 @@ const placeBetSchema = z.object({
 
 /** RF05 — efetivação e consulta de apostas. */
 export class BetController {
+  static async listAll(request: FastifyRequest, reply: FastifyReply) {
+    await requireAuth(request, reply)
+    if (request.user.role !== UserRole.ADMIN) throw new ForbiddenError()
+    const bets = await BetModel.listAll()
+
+    return reply.send({
+      total: bets.length,
+      bets: BetView.renderMany(bets),
+    })
+  }
+
   static async create(request: FastifyRequest, reply: FastifyReply) {
     const body = parseOrThrow(placeBetSchema, request.body)
     const { bet, balance } = await BetModel.place({ ...body, userId: request.user.sub })
