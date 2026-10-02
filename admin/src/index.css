@@ -1,3 +1,68 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
-:root { font-family: 'Manrope', sans-serif; color: #f4f1eb; background: #101112; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
-* { box-sizing: border-box; } body { margin: 0; min-width: 320px; background: #101112; } button, input, select { font: inherit; } button { cursor: pointer; } #root { min-height: 100vh; }
+/* Valores padrão (MMA). O tema sazonal sobrescreve via applyTheme() em src/theme.ts. */
+:root {
+  --background: #111111;
+  --surface: #1a1a1a;
+  --surface-alt: #232323;
+  --border: #2f2f2f;
+  --primary: #d7261e;
+  --primary-contrast: #ffffff;
+  --accent: #d9cba3;
+  --text: #ececec;
+  --text-muted: #8e8e8e;
+  --success: #5bae6e;
+  --danger: #e5484d;
+  --info: #7fa6c7;
+  --overlay: rgba(0, 0, 0, 0.7);
+  --glow: transparent;
+  --display-font: 'Archivo Narrow', 'Arial Narrow', sans-serif-condensed, sans-serif;
+  --display-weight: 700;
+  --display-spacing: 0.5px;
+  --display-transform: uppercase;
+  --body-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-pill: 4px;
+
+  /* Nomes usados pelo App.css original e por estilos inline nas views. */
+  --bg: var(--background);
+  --red: var(--primary);
+  --gold: var(--accent);
+  --green: var(--success);
+  --blue: var(--info);
+  --cream: var(--text);
+  --muted: var(--text-muted);
+  --line: var(--border);
+  --surface-2: var(--surface-alt);
+
+  color-scheme: dark;
+  font-family: var(--body-font);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--background);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--background);
+  color: var(--text);
+  font-family: var(--body-font);
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+#root {
+  min-height: 100vh;
+}

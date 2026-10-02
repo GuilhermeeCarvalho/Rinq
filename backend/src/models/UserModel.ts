@@ -3,6 +3,12 @@ import type { Db } from '../lib/prisma.js'
 import type { UserModel as UserRow } from '../../generated/prisma/models.js'
 import type { UserRole } from '../../generated/prisma/enums.js'
 
+export interface UpdateUserInput {
+  name?: string
+  email?: string
+  passwordHash?: string
+}
+
 export interface CreateUserInput {
   name: string
   email: string
@@ -22,6 +28,17 @@ export class UserModel {
         ...(input.role === undefined ? {} : { role: input.role }),
         // O default de 1500 moedas vive no schema; só sobrescrevemos quando pedido.
         ...(input.virtualCoins === undefined ? {} : { virtualCoins: input.virtualCoins }),
+      },
+    })
+  }
+
+  static async update(id: string, input: UpdateUserInput, db: Db = prisma): Promise<UserRow> {
+    return db.user.update({
+      where: { id },
+      data: {
+        ...(input.name === undefined ? {} : { name: input.name }),
+        ...(input.email === undefined ? {} : { email: input.email.toLowerCase() }),
+        ...(input.passwordHash === undefined ? {} : { passwordHash: input.passwordHash }),
       },
     })
   }

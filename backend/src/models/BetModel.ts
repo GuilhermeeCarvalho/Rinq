@@ -53,6 +53,12 @@ export class BetModel {
       if (fight.isFinished) {
         throw new BusinessRuleError('FIGHT_CLOSED', 'Esta luta já foi encerrada. Apostas fechadas.')
       }
+      if (fight.scheduledAt <= new Date()) {
+        throw new BusinessRuleError(
+          'FIGHT_STARTED',
+          'Esta luta já foi iniciada ou o horário limite para apostas expirou.',
+        )
+      }
 
       const isCompetitorA = input.chosenWinnerId === fight.competitorAId
       const isCompetitorB = input.chosenWinnerId === fight.competitorBId

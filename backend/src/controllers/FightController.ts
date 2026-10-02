@@ -13,7 +13,7 @@ import {
   seasonQuerySchema,
   seasonTypeSchema,
 } from '../lib/validation.js'
-import { env } from '../config/env.js'
+import { getActiveSeason } from '../config/runtime.js'
 
 const listFightsQuerySchema = seasonQuerySchema.extend({
   includeFinished: booleanQuerySchema.default(false),
@@ -23,12 +23,15 @@ const listFightsQuerySchema = seasonQuerySchema.extend({
 const createFightSchema = z.object({
   competitorAId: z.uuid(),
   competitorBId: z.uuid(),
-  seasonType: seasonTypeSchema.default(env.activeSeason),
+  seasonType: seasonTypeSchema.default(getActiveSeason),
+  scheduledAt: z.coerce.date().optional(),
+})
+
+const updateFightSchema = z.object({
   scheduledAt: z.coerce.date().optional(),
 })
 
 const finishFightSchema = z.object({
-  // Ausente ou null = empate: todas as apostas são estornadas.
   winnerId: z.uuid().nullish(),
 })
 
@@ -37,7 +40,6 @@ const oddsPreviewQuerySchema = z.object({
   competitorBId: z.uuid(),
 })
 
-/** RF03/RF04 — ciclo de vida dos cards de luta. */
 export class FightController {
   static async list(request: FastifyRequest, reply: FastifyReply) {
     const query = parseOrThrow(listFightsQuerySchema, request.query)
@@ -71,7 +73,19 @@ export class FightController {
     return reply.status(201).send(FightView.render(fight))
   }
 
-  /** Encerra a luta e dispara a liquidação das apostas (RNF02). */
+  static async update(request: FastifyRequest, reply: FastifyReply) {
+    const { id } = parseOrThrow(idParamSchema, request.params)
+    const body = parseOrThrow(updateFightSchema, request.body)
+    const fight = await FightModel.update(id, body)
+    return reply.send(FightView.render(fight))
+  }
+
+  static async delete(request: FastifyRequest, reply: FastifyReply) {
+    const { id } = parseOrThrow(idParamSchema, request.params)
+    const result = await FightModel.cancel(id)
+    return reply.send({ success: true, ...result })
+  }
+
   static async finish(request: FastifyRequest, reply: FastifyReply) {
     const { id } = parseOrThrow(idParamSchema, request.params)
     const body = parseOrThrow(finishFightSchema, request.body ?? {})
@@ -84,7 +98,6 @@ export class FightController {
     })
   }
 
-  /** Simulação de odds antes de criar o card — expõe o RF04 de forma isolada. */
   static async oddsPreview(request: FastifyRequest, reply: FastifyReply) {
     const query = parseOrThrow(oddsPreviewQuerySchema, request.query)
 

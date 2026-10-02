@@ -1,4 +1,4 @@
-import type { TextStyle } from 'react-native'
+import type { ImageSourcePropType, TextStyle } from 'react-native'
 
 /** Mesma chave do enum SeasonType do backend. */
 export type SeasonKey = 'HUMAN_MMA' | 'ROBOT_ROOSTER'
@@ -15,8 +15,10 @@ export interface ThemePalette {
   textMuted: string
   success: string
   danger: string
+  /** Status neutro/informativo (ex.: aposta estornada). */
+  info: string
   overlay: string
-  /** Brilho externo dos cards — o tema neon usa, o de MMA quase não. */
+  /** Sombra dos elementos elevados. Os temas atuais são chapados e usam 'transparent'. */
   glow: string
 }
 
@@ -53,6 +55,13 @@ export interface ThemeDictionary {
   betPlaced: string
   updateAvailable: string
   updateApplying: string
+  brandMain: string
+  brandSub: string
+  tabFights: string
+  /** Ícone (emoji) da aba de confrontos na barra inferior. */
+  tabFightsIcon: string
+  tabBets: string
+  tabProfile: string
 }
 
 export interface ThemeTypography {
@@ -61,14 +70,19 @@ export interface ThemeTypography {
   displayLetterSpacing: number
   displayWeight: TextStyle['fontWeight']
   bodyWeight: TextStyle['fontWeight']
-  /** Estilo das odds — o tema robô usa monoespaçado. */
+  /** Fonte das odds e valores (com fontVariant tabular-nums nos componentes). */
   numericFontFamily: TextStyle['fontFamily']
+  /** Fonte do corpo de texto. */
+  bodyFontFamily: TextStyle['fontFamily']
 }
 
 export interface AppTheme {
   key: SeasonKey
   name: string
-  tagline: string
+  /** Logotipo da temporada (substitui o texto brandMain/brandSub nos cabeçalhos). */
+  logo: ImageSourcePropType
+  /** Proporção largura/altura do logotipo, para dimensionar sem distorcer. */
+  logoAspectRatio: number
   palette: ThemePalette
   dictionary: ThemeDictionary
   typography: ThemeTypography
