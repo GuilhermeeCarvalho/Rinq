@@ -68,7 +68,34 @@ export function buildServer(): FastifyInstance {
       })
     }
 
+    const isDatabaseUnavailable =
+      error instanceof Prisma.PrismaClientInitializationError ||
+      error instanceof Prisma.PrismaClientUnknownRequestError ||
+      error instanceof Prisma.PrismaClientRustPanicError ||
+      ['PrismaClientInitializationError', 'PrismaClientUnknownRequestError', 'PrismaClientRustPanicError'].includes(error.name)
+
+    if (isDatabaseUnavailable) {
+      request.log.error(error)
+      return reply.status(503).send({
+        error: {
+          code: 'DATABASE_UNAVAILABLE',
+          message: 'O banco de dados está indisponível no momento. Inicie o banco e tente novamente.',
+        },
+      })
+    }
+
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'ECONNREFUSED' || error.code === 'P2024') {
+        request.log.error(error)
+        return reply.status(503).send({
+          error: {
+            code: 'DATABASE_UNAVAILABLE',
+            message: error.code === 'ECONNREFUSED'
+              ? 'O banco de dados está indisponível. Inicie o banco e tente novamente.'
+              : 'O banco de dados está demorando para responder. Tente novamente em instantes.',
+          },
+        })
+      }
       if (error.code === 'P2002') {
         return reply.status(409).send({
           error: { code: 'UNIQUE_CONSTRAINT', message: 'Registro duplicado.' },
