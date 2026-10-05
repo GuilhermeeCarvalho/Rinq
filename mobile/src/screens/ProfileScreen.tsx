@@ -5,12 +5,12 @@ import {
   Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view'
 import { api, ApiError } from '../api/client'
 import type { BetDTO, UserDTO } from '../api/client'
 import { useSeasonTheme } from '../theme'
@@ -163,9 +163,15 @@ export function ProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <ScrollView
-        contentContainerStyle={styles.content}
+      <KeyboardAwareScrollView
+        contentContainerStyle={[styles.content, styles.contentGrow]}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        enableOnAndroid
+        enableAutomaticScroll
+        keyboardOpeningTime={0}
+        extraScrollHeight={48}
+        extraHeight={48}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -305,7 +311,7 @@ export function ProfileScreen() {
             </Pressable>
           ) : null}
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </KeyboardAvoidingView>
   )
 }
@@ -316,7 +322,8 @@ function createStyles(theme: AppTheme) {
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: palette.background },
-    content: { paddingHorizontal: spacing(2), paddingTop: spacing(1.5), paddingBottom: spacing(6) },
+    content: { paddingHorizontal: spacing(2), paddingTop: spacing(1.5), paddingBottom: spacing(10) },
+    contentGrow: { flexGrow: 1 },
     centerContainer: {
       flex: 1,
       justifyContent: 'center',

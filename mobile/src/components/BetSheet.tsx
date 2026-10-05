@@ -1,8 +1,11 @@
 import React, { useMemo, useState } from 'react'
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -54,8 +57,16 @@ export function BetSheet({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View style={styles.backdrop}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.backdrop}
+      >
         <View style={styles.sheet}>
+          <ScrollView
+            contentContainerStyle={styles.sheetContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           <Text style={styles.title}>{dictionary.betSheetTitle}</Text>
 
           {selection ? (
@@ -133,8 +144,9 @@ export function BetSheet({
               </Pressable>
             </>
           ) : null}
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }
@@ -156,6 +168,9 @@ function createStyles(theme: AppTheme) {
       borderColor: palette.border,
       padding: spacing(3),
       paddingBottom: spacing(5),
+    },
+    sheetContent: {
+      paddingBottom: spacing(2),
     },
     title: {
       color: palette.textMuted,

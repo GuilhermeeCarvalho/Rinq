@@ -7,7 +7,7 @@ dicionário de termos via **EAS Update (OTA)** — sem gerar APK novo.
 | Temporada | `seasonType` | Interface | Vocabulário |
 |---|---|---|---|
 | 1 — MMA Humano | `HUMAN_MMA` | escura / vermelha | Lutador, Academia, Categoria, Cartel |
-| 2 — Galos-Robô | `ROBOT_ROOSTER` | industrial / neon | Galo-Robô, Laboratório, Armamento, Danos de Batalha |
+| 2 — Galos | `COCKFIGHTING` | industrial / neon | Galo, Laboratório, Armamento, Danos de Batalha |
 
 ```
 rinq-app/

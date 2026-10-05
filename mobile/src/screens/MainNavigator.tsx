@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { Alert, Image, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { HomeScreen } from './HomeScreen'
 import { MyBetsScreen } from './MyBetsScreen'
@@ -19,7 +19,17 @@ export function MainNavigator({ onLogout }: MainNavigatorProps) {
   const { theme, dictionary } = useSeasonTheme()
   const insets = useSafeAreaInsets()
   const [activeTab, setActiveTab] = useState<TabType>('fights')
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
   const styles = React.useMemo(() => createStyles(theme), [theme])
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => setIsKeyboardVisible(true))
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => setIsKeyboardVisible(false))
+    return () => {
+      showSubscription.remove()
+      hideSubscription.remove()
+    }
+  }, [])
 
   function confirmLogout() {
     Alert.alert('Sair da Conta', 'Deseja encerrar sua sessão no Rinq?', [
@@ -62,7 +72,7 @@ export function MainNavigator({ onLogout }: MainNavigatorProps) {
         )}
       </View>
 
-      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+      {!isKeyboardVisible ? <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
         <Pressable
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'fights' }}
@@ -101,7 +111,7 @@ export function MainNavigator({ onLogout }: MainNavigatorProps) {
             {dictionary.tabProfile}
           </Text>
         </Pressable>
-      </View>
+      </View> : null}
     </View>
   )
 }
