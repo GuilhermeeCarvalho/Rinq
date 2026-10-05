@@ -15,12 +15,18 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function submit(): Promise<void> {
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!normalizedEmail || !password) {
+      setError('Informe seu e-mail e sua senha.')
+      return
+    }
+
     setIsSubmitting(true)
     setError(null)
     try {
       const response = isRegistering
-        ? await api.register({ name, email, password })
-        : await api.login({ email, password })
+        ? await api.register({ name: name.trim(), email: normalizedEmail, password })
+        : await api.login({ email: normalizedEmail, password })
       setAuthToken(response.token)
       onAuthenticated(response.token)
     } catch (cause) {

@@ -9,7 +9,7 @@ import { UserView } from '../views/UserView.js'
 
 const credentialsSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
-  email: z.email('E-mail inválido.'),
+  email: z.string().trim().pipe(z.email('E-mail inválido.')).transform((value) => value.toLowerCase()),
   password: z.string().min(8, 'A senha deve ter pelo menos 8 caracteres.').max(128),
 })
 
