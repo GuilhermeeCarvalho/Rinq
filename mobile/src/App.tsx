@@ -2,12 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { ThemeProvider, useTheme } from './theme'
-import { HomeScreen } from './screens/HomeScreen'
+import { MainNavigator } from './screens/MainNavigator'
 import { AuthScreen } from './screens/AuthScreen'
 import { api, setAuthToken } from './api/client'
 import { clearSessionToken, getSessionToken, setSessionToken } from './lib/sessionStorage'
 
-/** A StatusBar precisa estar dentro do provider para seguir o tema sazonal. */
 function ThemedStatusBar() {
   const theme = useTheme()
   return <StatusBar style={theme.statusBarStyle} />
@@ -41,11 +40,23 @@ export default function App() {
     setToken(nextToken)
   }
 
+  async function handleLogout(): Promise<void> {
+    setAuthToken(null)
+    await clearSessionToken()
+    setToken(null)
+  }
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
         <ThemedStatusBar />
-        {isHydrated ? (token ? <HomeScreen /> : <AuthScreen onAuthenticated={(value) => void handleAuthenticated(value)} />) : null}
+        {isHydrated ? (
+          token ? (
+            <MainNavigator onLogout={() => void handleLogout()} />
+          ) : (
+            <AuthScreen onAuthenticated={(value) => void handleAuthenticated(value)} />
+          )
+        ) : null}
       </ThemeProvider>
     </SafeAreaProvider>
   )

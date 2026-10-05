@@ -4,14 +4,15 @@ import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import { Prisma } from '../generated/prisma/client.js'
 import { env, isProduction } from './config/env.js'
+import { getActiveSeason } from './config/runtime.js'
 import { prisma } from './lib/prisma.js'
 import { AppError } from './lib/errors.js'
 import { SeasonController } from './controllers/SeasonController.js'
-import { UserController } from './controllers/UserController.js'
 import { CompetitorController } from './controllers/CompetitorController.js'
 import { FightController } from './controllers/FightController.js'
 import { BetController } from './controllers/BetController.js'
 import { AuthController } from './controllers/AuthController.js'
+import { UserController } from './controllers/UserController.js'
 import { requireAuth, requireRole } from './lib/auth.js'
 import { UserRole } from '../generated/prisma/enums.js'
 
@@ -22,39 +23,46 @@ export function buildServer(): FastifyInstance {
       : { transport: { target: 'pino-pretty', options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' } } },
   })
 
-  app.register(cors, { origin: true })
+  app.register(cors, {
+    origin: true,
+    methods: ['GET', 'HEAD', 'PUT', 'POST', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
   app.register(jwt, { secret: env.jwtSecret })
 
-  // ---------------------------------------------------------------- rotas
-  app.get('/health', async () => ({ status: 'ok', season: env.activeSeason }))
+  app.get('/health', async () => ({ status: 'ok', season: getActiveSeason() }))
 
-  // RF06 — temporada ativa (dirige o tema OTA no app)
   app.get('/season', SeasonController.show)
+  app.put('/season', { preHandler: requireRole(UserRole.ADMIN) }, SeasonController.update)
 
-  // RF01 — apostadores
   app.post('/auth/register', AuthController.register)
   app.post('/auth/login', AuthController.login)
   app.get('/auth/me', { preHandler: requireAuth }, AuthController.me)
+  app.patch('/users/me', { preHandler: requireAuth }, UserController.updateMe)
   app.get('/users/me/bets', { preHandler: requireAuth }, BetController.listByUser)
-  app.get('/admin/bets', { preHandler: requireRole(UserRole.ADMIN) }, BetController.listAll)
+  app.post('/users/me/daily-bonus', { preHandler: requireAuth }, UserController.claimDailyBonus)
 
-  // RF02 — catálogo unificado de competidores
+  app.get('/admin/bets', { preHandler: requireRole(UserRole.ADMIN) }, BetController.listAll)
+  app.get('/admin/users', { preHandler: requireRole(UserRole.ADMIN) }, UserController.listAdmin)
+  app.post('/admin/users/:id/coins', { preHandler: requireRole(UserRole.ADMIN) }, UserController.adjustCoins)
+
   app.get('/competitors', CompetitorController.list)
   app.get('/competitors/:id', CompetitorController.show)
   app.post('/competitors', { preHandler: requireRole(UserRole.ADMIN) }, CompetitorController.create)
+  app.put('/competitors/:id', { preHandler: requireRole(UserRole.ADMIN) }, CompetitorController.update)
+  app.delete('/competitors/:id', { preHandler: requireRole(UserRole.ADMIN) }, CompetitorController.delete)
 
-  // RF03/RF04 — cards de luta e odds
   app.get('/fights', FightController.list)
   app.get('/fights/odds/preview', FightController.oddsPreview)
   app.get('/fights/:id', FightController.show)
   app.post('/fights', { preHandler: requireRole(UserRole.ADMIN) }, FightController.create)
+  app.patch('/fights/:id', { preHandler: requireRole(UserRole.ADMIN) }, FightController.update)
+  app.delete('/fights/:id', { preHandler: requireRole(UserRole.ADMIN) }, FightController.delete)
   app.post('/fights/:id/finish', { preHandler: requireRole(UserRole.ADMIN) }, FightController.finish)
 
-  // RF05 — apostas
   app.post('/bets', { preHandler: requireRole(UserRole.PLAYER) }, BetController.create)
   app.get('/bets/:id', BetController.show)
 
-  // ------------------------------------------------------- tratamento de erro
   app.setNotFoundHandler((request, reply) =>
     reply.status(404).send({
       error: { code: 'ROUTE_NOT_FOUND', message: `Rota ${request.method} ${request.url} não existe.` },
@@ -108,19 +116,27 @@ export function buildServer(): FastifyInstance {
       }
     }
 
-    if (error.validation) {
+    if (error && 'issues' in error && Array.isArray((error as { issues: unknown }).issues)) {
       return reply.status(422).send({
-        error: { code: 'VALIDATION_ERROR', message: error.message },
+        error: {
+          code: 'VALIDATION_FAILED',
+          message: 'Dados enviados são inválidos.',
+          details: (error as { issues: unknown }).issues,
+        },
       })
     }
 
     request.log.error(error)
-    return reply.status(error.statusCode && error.statusCode < 500 ? error.statusCode : 500).send({
+    return reply.status(500).send({
       error: {
         code: 'INTERNAL_ERROR',
-        message: isProduction ? 'Erro interno do servidor.' : error.message,
+        message: 'Ocorreu um erro interno. Tente novamente em instantes.',
       },
     })
+  })
+
+  app.addHook('onClose', async () => {
+    await prisma.$disconnect()
   })
 
   return app
@@ -141,7 +157,7 @@ async function main(): Promise<void> {
 
   try {
     await app.listen({ port: env.port, host: env.host })
-    app.log.info(`Rinq API no ar — temporada ativa: ${env.activeSeason}`)
+    app.log.info(`Rinq API no ar — temporada ativa: ${getActiveSeason()}`)
   } catch (error) {
     app.log.error(error)
     await prisma.$disconnect()

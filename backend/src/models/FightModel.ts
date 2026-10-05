@@ -1,7 +1,7 @@
 import { prisma } from '../lib/prisma.js'
 import type { Db } from '../lib/prisma.js'
 import type { Prisma } from '../../generated/prisma/client.js'
-import type { SeasonType } from '../../generated/prisma/enums.js'
+import { BetStatus, type SeasonType } from '../../generated/prisma/enums.js'
 import { CompetitorModel } from './CompetitorModel.js'
 import { BetModel } from './BetModel.js'
 import type { SettlementSummary } from './BetModel.js'
@@ -17,15 +17,19 @@ export type FightWithCompetitors = Prisma.FightGetPayload<{ include: typeof figh
 
 export interface ListFightsOptions {
   seasonType: SeasonType
-  includeFinished?: boolean
-  take?: number
+  includeFinished?: boolean | undefined
+  take?: number | undefined
 }
 
 export interface CreateFightInput {
   competitorAId: string
   competitorBId: string
   seasonType: SeasonType
-  scheduledAt?: Date
+  scheduledAt?: Date | undefined
+}
+
+export interface UpdateFightInput {
+  scheduledAt?: Date | undefined
 }
 
 export interface FinishFightResult {
@@ -33,7 +37,6 @@ export interface FinishFightResult {
   settlement: SettlementSummary
 }
 
-/** RF03 — cards de luta por temporada. */
 export class FightModel {
   static async listBySeason(
     options: ListFightsOptions,
@@ -55,10 +58,6 @@ export class FightModel {
     return db.fight.findUnique({ where: { id }, include: fightInclude })
   }
 
-  /**
-   * Cria o confronto já com as odds calculadas pelo OddsService a partir
-   * do cartel atual dos dois competidores (RF04).
-   */
   static async create(input: CreateFightInput, db: Db = prisma): Promise<FightWithCompetitors> {
     if (input.competitorAId === input.competitorBId) {
       throw new ValidationError('Um competidor não pode lutar contra si mesmo.')
@@ -89,10 +88,52 @@ export class FightModel {
     })
   }
 
-  /**
-   * Encerra a luta, atualiza o cartel dos competidores e liquida as apostas
-   * — tudo em uma única transação (RNF02). `winnerId === null` = empate.
-   */
+  static async update(
+    id: string,
+    input: UpdateFightInput,
+    db: Db = prisma,
+  ): Promise<FightWithCompetitors> {
+    const fight = await db.fight.findUnique({ where: { id } })
+    if (!fight) throw new NotFoundError('Luta')
+    if (fight.isFinished) throw new ConflictError('FIGHT_ALREADY_FINISHED', 'Luta já encerrada.')
+
+    return db.fight.update({
+      where: { id },
+      data: {
+        ...(input.scheduledAt !== undefined ? { scheduledAt: input.scheduledAt } : {}),
+      },
+      include: fightInclude,
+    })
+  }
+
+  static async cancel(
+    id: string,
+  ): Promise<{ refundedBets: number; coinsRefunded: number }> {
+    return prisma.$transaction(async (tx) => {
+      const fight = await tx.fight.findUnique({ where: { id } })
+      if (!fight) throw new NotFoundError('Luta')
+      if (fight.isFinished) {
+        throw new ConflictError('FIGHT_ALREADY_FINISHED', 'Lutas já encerradas não podem ser canceladas.')
+      }
+
+      const pendingBets = await tx.bet.findMany({ where: { fightId: id, status: BetStatus.PENDING } })
+      let coinsRefunded = 0
+
+      for (const bet of pendingBets) {
+        await tx.user.update({
+          where: { id: bet.userId },
+          data: { virtualCoins: { increment: bet.amount } },
+        })
+        coinsRefunded += bet.amount
+      }
+
+      await tx.bet.deleteMany({ where: { fightId: id } })
+      await tx.fight.delete({ where: { id } })
+
+      return { refundedBets: pendingBets.length, coinsRefunded }
+    })
+  }
+
   static async finish(fightId: string, winnerId: string | null): Promise<FinishFightResult> {
     return prisma.$transaction(async (tx) => {
       const fight = await tx.fight.findUnique({ where: { id: fightId } })

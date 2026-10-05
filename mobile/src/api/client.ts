@@ -182,10 +182,18 @@ export const api = {
 
   getMe: () => request<UserDTO>('/auth/me'),
 
+  /** Edição do próprio perfil. E-mail e senha exigem currentPassword. */
+  updateMe: (input: { name?: string; email?: string; currentPassword?: string; newPassword?: string }) =>
+    request<UserDTO>('/users/me', { method: 'PATCH', body: JSON.stringify(input) }),
+
   /** RF05 — efetivação da aposta. */
   placeBet: (input: { fightId: string; chosenWinnerId: string; amount: number }) =>
     request<PlaceBetResponse>('/bets', { method: 'POST', body: JSON.stringify(input) }),
 
-  getUserBets: (userId: string) =>
-    request<{ total: number; bets: BetDTO[] }>(`/users/${userId}/bets`),
+  getMyBets: () => request<{ total: number; bets: BetDTO[] }>('/users/me/bets'),
+  getUserBets: () => request<{ total: number; bets: BetDTO[] }>('/users/me/bets'),
+  claimDailyBonus: () =>
+    request<{ success: boolean; bonusAdded: number; virtualCoins: number }>('/users/me/daily-bonus', {
+      method: 'POST',
+    }),
 }

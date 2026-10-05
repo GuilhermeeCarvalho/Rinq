@@ -100,6 +100,19 @@ liquidação atômica das apostas.
 
 ---
 
+## 🍎 Rodando no simulador do iPhone (Mac)
+
+Requer o **Xcode** instalado. Com o banco e a API rodando:
+
+```bash
+cd mobile
+npm run ios
+```
+
+O comando abre o simulador, instala o Expo Go e carrega o app.
+
+---
+
 ## 🔁 Trocando a temporada
 
 ### No servidor (dados + tema padrão)

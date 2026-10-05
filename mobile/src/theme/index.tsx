@@ -10,7 +10,6 @@ export const THEMES: Record<SeasonKey, AppTheme> = {
   ROBOT_ROOSTER: robotTheme,
 }
 
-/** Tema usado enquanto a API não responde. */
 const FALLBACK_SEASON: SeasonKey = 'HUMAN_MMA'
 
 interface ThemeContextValue {
@@ -20,16 +19,12 @@ interface ThemeContextValue {
   isLoading: boolean
   error: string | null
   refresh: () => Promise<void>
-  /** Alterna o tema localmente — usado para demonstrar a troca sazonal. */
-  toggleSeasonPreview: () => void
-  isPreviewing: boolean
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [season, setSeason] = useState<SeasonDTO | null>(null)
-  const [preview, setPreview] = useState<SeasonKey | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -50,19 +45,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     void refresh()
   }, [refresh])
 
-  const activeKey: SeasonKey = preview ?? season?.seasonType ?? FALLBACK_SEASON
+  const activeKey: SeasonKey = season?.seasonType ?? FALLBACK_SEASON
   const theme = THEMES[activeKey]
-
-  const toggleSeasonPreview = useCallback(() => {
-    setPreview((current) => {
-      const next: SeasonKey =
-        (current ?? season?.seasonType ?? FALLBACK_SEASON) === 'HUMAN_MMA'
-          ? 'ROBOT_ROOSTER'
-          : 'HUMAN_MMA'
-      // Voltar à temporada do servidor limpa o preview.
-      return next === season?.seasonType ? null : next
-    })
-  }, [season?.seasonType])
 
   const value = useMemo<ThemeContextValue>(
     () => ({
@@ -72,10 +56,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       error,
       refresh,
-      toggleSeasonPreview,
-      isPreviewing: preview !== null,
     }),
-    [theme, season, isLoading, error, refresh, toggleSeasonPreview, preview],
+    [theme, season, isLoading, error, refresh],
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
@@ -87,12 +69,10 @@ export function useSeasonTheme(): ThemeContextValue {
   return context
 }
 
-/** Atalho para quem só precisa da paleta/tipografia. */
 export function useTheme(): AppTheme {
   return useSeasonTheme().theme
 }
 
-/** Atalho para os rótulos da temporada ativa. */
 export function useDictionary(): ThemeDictionary {
   return useSeasonTheme().dictionary
 }

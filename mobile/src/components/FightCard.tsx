@@ -14,27 +14,34 @@ function formatDate(iso: string): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
 }
 
-/**
- * Card de luta 100% agnóstico: nomes de campos vêm do DTO e todos os
- * rótulos vêm do dicionário da temporada ativa.
- */
 export function FightCard({ fight, onPickWinner }: FightCardProps) {
   const { theme, dictionary } = useSeasonTheme()
   const styles = useMemo(() => createStyles(theme), [theme])
 
-  const renderCorner = (competitor: CompetitorDTO, odd: number, isWinner: boolean) => (
-    <View style={styles.corner}>
-      <Text style={[styles.name, isWinner && styles.nameWinner]} numberOfLines={2}>
+  const renderCorner = (
+    competitor: CompetitorDTO,
+    odd: number,
+    isWinner: boolean,
+    cornerLabel: string,
+    align: 'left' | 'right',
+  ) => (
+    <View style={[styles.corner, align === 'right' && styles.cornerRight]}>
+      <Text style={styles.cornerTag}>{cornerLabel}</Text>
+
+      <Text
+        style={[styles.name, isWinner && styles.nameWinner, align === 'right' && styles.textRight]}
+        numberOfLines={2}
+      >
         {competitor.name}
       </Text>
-      <Text style={styles.team} numberOfLines={1}>
-        {dictionary.team}: {competitor.team}
+
+      <Text style={[styles.team, align === 'right' && styles.textRight]} numberOfLines={1}>
+        {competitor.team}
       </Text>
-      <Text style={styles.spec} numberOfLines={1}>
-        {dictionary.styleSpec}: {competitor.spec.style}
-      </Text>
-      <Text style={styles.record}>
-        {dictionary.record} {competitor.record.summary}
+
+      <Text style={[styles.spec, align === 'right' && styles.textRight]} numberOfLines={1}>
+        {competitor.spec.style} · {competitor.record.wins}-{competitor.record.losses}
+        {competitor.record.draws > 0 ? `-${competitor.record.draws}` : ''}
       </Text>
 
       <Pressable
@@ -43,46 +50,76 @@ export function FightCard({ fight, onPickWinner }: FightCardProps) {
         disabled={fight.isFinished}
         onPress={() => onPickWinner(fight, competitor, odd)}
         style={({ pressed }) => [
-          styles.oddButton,
-          pressed && styles.oddButtonPressed,
-          fight.isFinished && styles.oddButtonDisabled,
+          styles.oddTile,
+          pressed && styles.oddTilePressed,
+          fight.isFinished && styles.oddTileDisabled,
+          isWinner && styles.oddTileWinner,
         ]}
       >
-        <Text style={styles.oddValue}>{odd.toFixed(2)}</Text>
-        <Text style={styles.oddLabel}>{dictionary.betAction}</Text>
+        <Text
+          style={[
+            styles.oddValue,
+            isWinner && { color: theme.palette.success },
+            fight.isFinished && !isWinner && { color: theme.palette.textMuted },
+          ]}
+        >
+          {odd.toFixed(2)}
+        </Text>
+        <Text style={styles.oddLabel}>
+          {fight.isFinished ? (isWinner ? dictionary.winner : '—') : dictionary.betAction}
+        </Text>
       </Pressable>
     </View>
   )
 
+  const winnerName =
+    fight.winnerId === fight.competitorA.id ? fight.competitorA.name : fight.competitorB.name
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.weight} numberOfLines={1}>
-          {fight.competitorA.spec.weight}
-        </Text>
-        <Text style={styles.date}>
+        <View style={styles.weightChip}>
+          <Text style={styles.weight}>{fight.competitorA.spec.weight}</Text>
+        </View>
+        <Text style={[styles.date, fight.isFinished && styles.dateFinished]}>
           {fight.isFinished ? dictionary.finished : formatDate(fight.scheduledAt)}
         </Text>
       </View>
 
       <View style={styles.body}>
-        {renderCorner(fight.competitorA, fight.odds.a, fight.winnerId === fight.competitorA.id)}
-        <View style={styles.versusWrapper}>
-          <Text style={styles.versus}>{dictionary.versus}</Text>
+        {renderCorner(
+          fight.competitorA,
+          fight.odds.a,
+          fight.winnerId === fight.competitorA.id,
+          'Canto 1',
+          'left',
+        )}
+
+        <View style={styles.versusColumn}>
+          <View style={styles.versusLine} />
+          <View style={styles.versusBadge}>
+            <Text style={styles.versusText}>{dictionary.versus}</Text>
+          </View>
+          <View style={styles.versusLine} />
         </View>
-        {renderCorner(fight.competitorB, fight.odds.b, fight.winnerId === fight.competitorB.id)}
+
+        {renderCorner(
+          fight.competitorB,
+          fight.odds.b,
+          fight.winnerId === fight.competitorB.id,
+          'Canto 2',
+          'right',
+        )}
       </View>
 
       {fight.isFinished ? (
-        <Text style={styles.result}>
-          {fight.isDraw
-            ? dictionary.draw
-            : `${dictionary.winner}: ${
-                fight.winnerId === fight.competitorA.id
-                  ? fight.competitorA.name
-                  : fight.competitorB.name
-              }`}
-        </Text>
+        <View style={styles.resultRow}>
+          <Text style={[styles.resultText, fight.isDraw && styles.resultTextDraw]}>
+            {fight.isDraw
+              ? `${dictionary.draw} — todas as apostas foram estornadas`
+              : `${dictionary.winner}: ${winnerName}`}
+          </Text>
+        </View>
       ) : null}
     </View>
   )
@@ -100,19 +137,27 @@ function createStyles(theme: AppTheme) {
       padding: spacing(2),
       marginBottom: spacing(2),
       shadowColor: palette.glow,
-      shadowOpacity: 1,
-      shadowRadius: 12,
       shadowOffset: { width: 0, height: 4 },
-      elevation: 4,
+      shadowOpacity: 1,
+      shadowRadius: 10,
+      elevation: 2,
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: spacing(1.5),
+      marginBottom: spacing(1.75),
+      paddingBottom: spacing(1.25),
+      borderBottomWidth: 1,
+      borderBottomColor: palette.border,
+    },
+    weightChip: {
+      backgroundColor: palette.surfaceAlt,
+      borderRadius: radii.sm,
+      paddingHorizontal: spacing(1),
+      paddingVertical: 3,
     },
     weight: {
-      flex: 1,
       color: palette.accent,
       fontFamily: typography.fontFamily,
       fontSize: 12,
@@ -122,67 +167,123 @@ function createStyles(theme: AppTheme) {
     },
     date: {
       color: palette.textMuted,
-      fontFamily: typography.numericFontFamily,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 12,
-      textTransform: 'uppercase',
+      fontVariant: ['tabular-nums'],
     },
-    body: { flexDirection: 'row', alignItems: 'stretch' },
+    dateFinished: { color: palette.danger },
+    body: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+    },
     corner: { flex: 1 },
-    versusWrapper: { justifyContent: 'center', paddingHorizontal: spacing(1) },
-    versus: {
-      color: palette.primary,
-      fontFamily: typography.fontFamily,
-      fontSize: 16,
-      fontWeight: typography.displayWeight,
-      letterSpacing: typography.displayLetterSpacing,
+    cornerRight: { alignItems: 'flex-end' },
+    textRight: { textAlign: 'right' },
+    cornerTag: {
+      color: palette.textMuted,
+      fontFamily: typography.bodyFontFamily,
+      fontSize: 11,
+      marginBottom: 4,
     },
     name: {
       color: palette.text,
       fontFamily: typography.fontFamily,
-      fontSize: 16,
+      fontSize: 19,
       fontWeight: typography.displayWeight,
-      letterSpacing: typography.displayLetterSpacing * 0.5,
+      letterSpacing: typography.displayLetterSpacing,
       textTransform: typography.displayTransform,
-      minHeight: 42,
+      lineHeight: 23,
+      minHeight: 46,
     },
     nameWinner: { color: palette.success },
-    team: { color: palette.textMuted, fontSize: 12, marginTop: spacing(0.5) },
-    spec: { color: palette.textMuted, fontSize: 12 },
-    record: {
+    team: {
       color: palette.text,
-      fontFamily: typography.numericFontFamily,
-      fontSize: 12,
-      marginTop: spacing(0.5),
+      fontFamily: typography.bodyFontFamily,
+      fontSize: 13,
+      marginTop: 2,
     },
-    oddButton: {
-      marginTop: spacing(1.5),
-      backgroundColor: palette.primary,
-      borderRadius: radii.md,
-      paddingVertical: spacing(1),
+    spec: {
+      color: palette.textMuted,
+      fontFamily: typography.bodyFontFamily,
+      fontSize: 12,
+      marginTop: 2,
+      marginBottom: spacing(1.5),
+      fontVariant: ['tabular-nums'],
+    },
+    versusColumn: {
+      width: 44,
       alignItems: 'center',
     },
-    oddButtonPressed: { opacity: 0.75 },
-    oddButtonDisabled: { backgroundColor: palette.surfaceAlt },
+    versusLine: {
+      flex: 1,
+      width: 1,
+      backgroundColor: palette.border,
+    },
+    versusBadge: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: palette.primary,
+      backgroundColor: palette.background,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginVertical: spacing(1),
+    },
+    versusText: {
+      color: palette.primary,
+      fontFamily: typography.fontFamily,
+      fontSize: 14,
+      fontWeight: typography.displayWeight,
+      textTransform: typography.displayTransform,
+    },
+    oddTile: {
+      alignSelf: 'stretch',
+      backgroundColor: palette.surfaceAlt,
+      borderWidth: 1,
+      borderColor: palette.border,
+      borderRadius: radii.md,
+      paddingVertical: 10,
+      paddingHorizontal: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 'auto',
+    },
+    oddTilePressed: {
+      borderColor: palette.primary,
+      backgroundColor: palette.background,
+    },
+    oddTileDisabled: { opacity: 0.55 },
+    oddTileWinner: {
+      borderColor: palette.success,
+    },
     oddValue: {
-      color: palette.primaryContrast,
+      color: palette.text,
       fontFamily: typography.numericFontFamily,
-      fontSize: 20,
+      fontSize: 22,
       fontWeight: '700',
+      fontVariant: ['tabular-nums'],
     },
     oddLabel: {
-      color: palette.primaryContrast,
-      fontFamily: typography.fontFamily,
-      fontSize: 10,
-      letterSpacing: 1,
-      textTransform: 'uppercase',
-    },
-    result: {
-      marginTop: spacing(1.5),
       color: palette.textMuted,
-      fontFamily: typography.fontFamily,
+      fontFamily: typography.bodyFontFamily,
       fontSize: 12,
-      textTransform: typography.displayTransform,
-      letterSpacing: typography.displayLetterSpacing * 0.5,
+      marginTop: 2,
     },
+    resultRow: {
+      marginTop: spacing(1.75),
+      backgroundColor: palette.surfaceAlt,
+      borderRadius: radii.md,
+      paddingVertical: spacing(1),
+      paddingHorizontal: spacing(1.5),
+    },
+    resultText: {
+      color: palette.success,
+      fontFamily: typography.bodyFontFamily,
+      fontSize: 13,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    resultTextDraw: { color: palette.info },
   })
 }
