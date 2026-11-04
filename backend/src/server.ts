@@ -15,6 +15,7 @@ import { AuthController } from './controllers/AuthController.js'
 import { UserController } from './controllers/UserController.js'
 import { requireAuth, requireRole } from './lib/auth.js'
 import { UserRole } from '../generated/prisma/enums.js'
+import { readSwaggerAsset, swaggerHtml, swaggerSpec } from './config/swagger.js'
 
 export function buildServer(): FastifyInstance {
   const app = Fastify({
@@ -29,6 +30,14 @@ export function buildServer(): FastifyInstance {
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
   app.register(jwt, { secret: env.jwtSecret })
+
+  app.get('/docs', async (_request, reply) => reply.type('text/html').send(swaggerHtml))
+  app.get('/docs.json', async (_request, reply) => reply.send(swaggerSpec))
+  app.get('/docs/*', async (request, reply) => {
+    const asset = await readSwaggerAsset((request.params as { '*': string })['*'])
+    if (!asset) return reply.status(404).send({ error: 'Swagger asset not found' })
+    return reply.type(asset.type).send(asset.content)
+  })
 
   app.get('/health', async () => ({ status: 'ok', season: getActiveSeason() }))
 

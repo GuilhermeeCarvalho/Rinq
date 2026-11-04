@@ -168,6 +168,30 @@ Senha dos players: player123
 
 ## 📡 Endpoints
 
+### 📚 Documentação interativa (Swagger)
+
+O backend publica a especificação OpenAPI e a interface Swagger UI:
+
+- Interface: <http://localhost:3333/docs>
+- Documento JSON: <http://localhost:3333/docs.json>
+
+Para configurar e executar o Swagger do zero:
+
+```bash
+cd backend
+npm install
+cp .env.example .env
+npx prisma migrate dev
+npm run db:generate
+npm run db:seed
+npm run dev
+```
+
+Com a API em execução, abra `http://localhost:3333/docs` no navegador. Para testar
+rotas protegidas, use **Authorize**, informe `Bearer SEU_TOKEN_JWT` e clique em **Authorize**.
+O token é obtido em `POST /auth/login`. A documentação é gerada a partir da configuração
+em `backend/src/config/swagger.ts` e acompanha as rotas atuais da API.
+
 | Método | Rota | Descrição |
 |---|---|---|
 | GET | `/health` | Status da API |
@@ -235,6 +259,7 @@ backend/src/
 ├── views/         serializadores JSON (DTOs)
 ├── services/      regra de negócio pura (OddsService)
 ├── config/env.ts  temporada ativa e variáveis
+├── config/swagger.ts especificação OpenAPI e Swagger UI
 ├── lib/           client Prisma, erros de domínio, validação
 └── server.ts      rotas + tratamento de erros
 ```
