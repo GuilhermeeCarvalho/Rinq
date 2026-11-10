@@ -4,12 +4,14 @@ import type { Fight } from '../types'
 
 export function FightsView({
   fights,
+  readOnly,
   onFinish,
   onCreate,
   onReschedule,
   onCancel,
 }: {
   fights: Fight[]
+  readOnly: boolean
   onFinish: (fight: Fight, winnerId: string | null) => void
   onCreate: () => void
   onReschedule: (fight: Fight) => void
@@ -22,9 +24,11 @@ export function FightsView({
           <p className="eyebrow">GESTÃO DO CARD</p>
           <h3>{fights.length} confrontos na temporada</h3>
         </div>
-        <button className="button button-primary" onClick={onCreate}>
-          <Plus size={17} /> Nova luta
-        </button>
+        {readOnly ? <span>Card e resultados da ESPN</span> : (
+          <button className="button button-primary" onClick={onCreate}>
+            <Plus size={17} /> Nova luta
+          </button>
+        )}
       </div>
       <div className="fight-list">
         {fights.map((fight) => (
@@ -34,7 +38,7 @@ export function FightsView({
                 <CalendarDays size={15} /> {formatDate(fight.scheduledAt)}
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {!fight.isFinished && (
+                {!readOnly && !fight.isFinished && (
                   <>
                     <button
                       className="small-button"
@@ -61,7 +65,7 @@ export function FightsView({
                 )}
                 <span className={`status ${fight.isFinished ? 'won' : 'pending'}`}>
                   <i />
-                  {fight.isFinished ? 'Encerrada' : 'Aberta'}
+                  {fight.isFinished ? 'Encerrada' : fight.bettingOpen === false ? 'Apostas fechadas' : 'Aberta'}
                 </span>
               </div>
             </div>
@@ -80,7 +84,7 @@ export function FightsView({
               <span>
                 ODDS <b>{fight.odds.a.toFixed(2)}</b> / <b>{fight.odds.b.toFixed(2)}</b>
               </span>
-              {!fight.isFinished && (
+              {!readOnly && !fight.isFinished && (
                 <div className="finish-actions">
                   <button onClick={() => onFinish(fight, fight.competitorA.id)}>
                     {fight.competitorA.name} venceu

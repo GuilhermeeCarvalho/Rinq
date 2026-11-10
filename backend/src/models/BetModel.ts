@@ -3,6 +3,9 @@ import type { Db } from '../lib/prisma.js'
 import { BetStatus } from '../../generated/prisma/enums.js'
 import type { Prisma } from '../../generated/prisma/client.js'
 import { OddsService } from '../services/OddsService.js'
+import { EspnMmaService, espnFightId } from '../services/EspnMmaService.js'
+import { makeMmaTicket, mmaTicketSchema } from '../lib/mmaTicket.js'
+import type { MmaTicket } from '../lib/mmaTicket.js'
 import { BusinessRuleError, NotFoundError, ValidationError } from '../lib/errors.js'
 
 export const betInclude = {
@@ -18,6 +21,7 @@ export interface PlaceBetInput {
   fightId: string
   chosenWinnerId: string
   amount: number
+  expectedOdd?: number | undefined
 }
 
 export interface PlaceBetResult {
@@ -47,8 +51,18 @@ export class BetModel {
    * debita a carteira e grava o bilhete. Qualquer falha desfaz tudo.
    */
   static async place(input: PlaceBetInput): Promise<PlaceBetResult> {
+    const mmaFight = espnFightId.test(input.fightId)
+      ? await EspnMmaService.findFight(input.fightId, true)
+      : null
     return prisma.$transaction(async (tx) => {
-      const fight = await tx.fight.findUnique({ where: { id: input.fightId } })
+      const fight = mmaFight ? {
+        ...mmaFight,
+        competitorAId: mmaFight.competitorA.id,
+        competitorBId: mmaFight.competitorB.id,
+        oddA: mmaFight.odds.a,
+        oddB: mmaFight.odds.b,
+        scheduledAt: new Date(mmaFight.scheduledAt),
+      } : await tx.fight.findUnique({ where: { id: input.fightId } })
       if (!fight) throw new NotFoundError('Luta')
       if (fight.isFinished) {
         throw new BusinessRuleError('FIGHT_CLOSED', 'Esta luta já foi encerrada. Apostas fechadas.')
@@ -58,6 +72,10 @@ export class BetModel {
           'FIGHT_STARTED',
           'Esta luta já foi iniciada ou o horário limite para apostas expirou.',
         )
+      }
+
+      if (mmaFight?.bettingOpen === false) {
+        throw new BusinessRuleError('FIGHT_CLOSED', 'As apostas estão fechadas para esta luta.')
       }
 
       const isCompetitorA = input.chosenWinnerId === fight.competitorAId
@@ -70,6 +88,9 @@ export class BetModel {
       if (!user) throw new NotFoundError('Usuário')
 
       const odd = isCompetitorA ? fight.oddA : fight.oddB
+      if (mmaFight && input.expectedOdd !== undefined && input.expectedOdd !== odd) {
+        throw new BusinessRuleError('ODD_CHANGED', 'A odd mudou. Atualize o card e confira a nova cotação.')
+      }
       const potentialPayout = OddsService.potentialPayout(input.amount, odd)
 
       // Débito atômico: a checagem de saldo vive no WHERE, então duas
@@ -88,8 +109,13 @@ export class BetModel {
       const bet = await tx.bet.create({
         data: {
           userId: input.userId,
-          fightId: input.fightId,
-          chosenWinnerId: input.chosenWinnerId,
+          ...(mmaFight ? {
+            mmaFightId: input.fightId,
+            mmaTicket: makeMmaTicket(mmaFight, input.chosenWinnerId),
+          } : {
+            fightId: input.fightId,
+            chosenWinnerId: input.chosenWinnerId,
+          }),
           amount: input.amount,
           oddAtPlacement: odd,
           potentialPayout,
@@ -98,7 +124,9 @@ export class BetModel {
         include: betInclude,
       })
 
-      const balance = user.virtualCoins - input.amount
+      const { virtualCoins: balance } = await tx.user.findUniqueOrThrow({
+        where: { id: input.userId }, select: { virtualCoins: true },
+      })
       return { bet, balance }
     })
   }
@@ -113,6 +141,34 @@ export class BetModel {
 
   static async findById(id: string, db: Db = prisma): Promise<BetWithRelations | null> {
     return db.bet.findUnique({ where: { id }, include: betInclude })
+  }
+
+  static async settleMmaFight(fightId: string, official: NonNullable<Awaited<ReturnType<typeof EspnMmaService.readResult>>>) {
+    await prisma.$transaction(async (tx) => {
+      const pending = await tx.bet.findMany({
+        where: { mmaFightId: fightId, status: BetStatus.PENDING },
+        orderBy: [{ userId: 'asc' }, { id: 'asc' }],
+      })
+      const settledAt = new Date()
+      for (const bet of pending) {
+        const ticket = mmaTicketSchema.parse(bet.mmaTicket)
+        const lineupChanged = official.fighterIds.length === 2 &&
+          (!official.fighterIds.includes(ticket.competitorA.id) || !official.fighterIds.includes(ticket.competitorB.id))
+        const result = lineupChanged ? { outcome: 'CANCELLED', winnerId: null } as const : official.result
+        if (result?.outcome === 'WINNER' && official.fighterIds.length !== 2) continue
+        if (!result) continue
+        const mmaTicket: MmaTicket = { ...ticket, ...result }
+        const status = !result.winnerId ? BetStatus.VOID :
+          result.winnerId === ticket.chosenWinnerId ? BetStatus.WON : BetStatus.LOST
+        const claimed = await tx.bet.updateMany({
+          where: { id: bet.id, status: BetStatus.PENDING },
+          data: { status, settledAt, mmaTicket },
+        })
+        if (!claimed.count || status === BetStatus.LOST) continue
+        const coins = status === BetStatus.VOID ? bet.amount : OddsService.payoutInCoins(bet.potentialPayout)
+        await tx.user.update({ where: { id: bet.userId }, data: { virtualCoins: { increment: coins } } })
+      }
+    })
   }
 
   /**

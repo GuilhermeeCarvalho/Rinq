@@ -6,6 +6,7 @@ import type { SeasonKey } from '../theme/types'
  */
 export interface CompetitorDTO {
   id: string
+  recordAvailable?: boolean
   name: string
   team: string
   seasonType: SeasonKey
@@ -15,6 +16,8 @@ export interface CompetitorDTO {
 
 export interface FightDTO {
   id: string
+  eventName?: string
+  bettingOpen?: boolean
   seasonType: SeasonKey
   scheduledAt: string
   isFinished: boolean
@@ -24,6 +27,30 @@ export interface FightDTO {
   competitorA: CompetitorDTO
   competitorB: CompetitorDTO
   odds: { a: number; b: number; houseMargin: number; impliedMargin: number }
+}
+
+interface FighterStat {
+  name: string
+  displayName: string
+  displayValue: string
+}
+
+export interface FighterDetailsDTO extends CompetitorDTO {
+  statistics: {
+    summary: FighterStat[]
+    categories: { displayName: string; stats: FighterStat[] }[]
+  }
+  history: {
+    id: string
+    eventName: string
+    date: string
+    result: string | null
+    opponent: { name: string } | null
+    method: string | null
+    round: number | null
+    time: string | null
+  }[]
+  upcomingFights: FightDTO[]
 }
 
 export interface SeasonDTO {
@@ -187,7 +214,9 @@ export const api = {
     request<UserDTO>('/users/me', { method: 'PATCH', body: JSON.stringify(input) }),
 
   /** RF05 — efetivação da aposta. */
-  placeBet: (input: { fightId: string; chosenWinnerId: string; amount: number }) =>
+  getFighter: (id: string) => request<FighterDetailsDTO>(`/competitors/${encodeURIComponent(id)}`),
+
+  placeBet: (input: { fightId: string; chosenWinnerId: string; amount: number; expectedOdd?: number }) =>
     request<PlaceBetResponse>('/bets', { method: 'POST', body: JSON.stringify(input) }),
 
   getMyBets: () => request<{ total: number; bets: BetDTO[] }>('/users/me/bets'),

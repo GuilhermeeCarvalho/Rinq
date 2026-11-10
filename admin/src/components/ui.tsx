@@ -70,7 +70,7 @@ export function FightRow({
         <span>{fight.odds.a.toFixed(2)}</span>
         <span>{fight.odds.b.toFixed(2)}</span>
       </div>
-      <div className="finish-actions">
+      {fight.seasonType === 'ROBOT_ROOSTER' && <div className="finish-actions">
         <button
           onClick={() => onFinish(fight, fight.competitorA.id)}
           title={`Vitória: ${fight.competitorA.name}`}
@@ -86,7 +86,7 @@ export function FightRow({
         <button onClick={() => onFinish(fight, null)} title="Empate">
           Empate
         </button>
-      </div>
+      </div>}
     </div>
   )
 }

@@ -1,6 +1,4 @@
-// Rinq.app — schema agnóstico de temporada (multitenancy visual).
-// As mesmas tabelas atendem MMA Humano e Galos-Robô: o que muda é o
-// seasonType e a leitura semântica dos campos `spec*` no frontend.
+// Rinq.app — os competidores e as lutas locais são da temporada de galos.
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -115,11 +113,13 @@ model Bet {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  fightId String
-  fight   Fight  @relation(fields: [fightId], references: [id], onDelete: Cascade)
-
-  chosenWinnerId String
-  chosenWinner   Competitor @relation("BetChosenWinner", fields: [chosenWinnerId], references: [id])
+  fightId        String?
+  fight          Fight?      @relation(fields: [fightId], references: [id], onDelete: Cascade)
+  chosenWinnerId String?
+  chosenWinner   Competitor? @relation("BetChosenWinner", fields: [chosenWinnerId], references: [id], onDelete: Restrict)
+  /// Identificador externo e recibo da aposta. O catálogo de MMA vem da ESPN.
+  mmaFightId     String?
+  mmaTicket      Json?
 
   amount           Int
   /// amount * odd escolhida, calculado pelo OddsService.
@@ -134,5 +134,6 @@ model Bet {
 
   @@index([userId, status])
   @@index([fightId, status])
+  @@index([mmaFightId, status])
   @@map("bets")
 }

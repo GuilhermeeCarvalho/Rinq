@@ -6,6 +6,7 @@ import type { AppTheme } from '../theme/types'
 
 export interface FightCardProps {
   fight: FightDTO
+  onViewFighter?: (fighter: CompetitorDTO) => void
   onPickWinner: (fight: FightDTO, competitor: CompetitorDTO, odd: number) => void
 }
 
@@ -14,10 +15,11 @@ function formatDate(iso: string): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
 }
 
-export function FightCard({ fight, onPickWinner }: FightCardProps) {
+export function FightCard({ fight, onPickWinner, onViewFighter }: FightCardProps) {
   const { theme, dictionary } = useSeasonTheme()
   const styles = useMemo(() => createStyles(theme), [theme])
 
+  const bettingClosed = fight.isFinished || fight.bettingOpen === false
   const renderCorner = (
     competitor: CompetitorDTO,
     odd: number,
@@ -31,6 +33,8 @@ export function FightCard({ fight, onPickWinner }: FightCardProps) {
       <Text
         style={[styles.name, isWinner && styles.nameWinner, align === 'right' && styles.textRight]}
         numberOfLines={2}
+        accessibilityRole={onViewFighter ? 'button' : undefined}
+        onPress={onViewFighter ? () => onViewFighter(competitor) : undefined}
       >
         {competitor.name}
       </Text>
@@ -40,19 +44,18 @@ export function FightCard({ fight, onPickWinner }: FightCardProps) {
       </Text>
 
       <Text style={[styles.spec, align === 'right' && styles.textRight]} numberOfLines={1}>
-        {competitor.spec.style} · {competitor.record.wins}-{competitor.record.losses}
-        {competitor.record.draws > 0 ? `-${competitor.record.draws}` : ''}
+        {competitor.recordAvailable === false ? 'Cartel indisponível' : `${competitor.spec.style} · ${competitor.record.summary}`}
       </Text>
 
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${dictionary.betAction} em ${competitor.name}, odd ${odd.toFixed(2)}`}
-        disabled={fight.isFinished}
+        disabled={bettingClosed}
         onPress={() => onPickWinner(fight, competitor, odd)}
         style={({ pressed }) => [
           styles.oddTile,
           pressed && styles.oddTilePressed,
-          fight.isFinished && styles.oddTileDisabled,
+          bettingClosed && styles.oddTileDisabled,
           isWinner && styles.oddTileWinner,
         ]}
       >
@@ -63,10 +66,10 @@ export function FightCard({ fight, onPickWinner }: FightCardProps) {
             fight.isFinished && !isWinner && { color: theme.palette.textMuted },
           ]}
         >
-          {odd.toFixed(2)}
+          {fight.bettingOpen === false && !fight.isFinished ? '—' : odd.toFixed(2)}
         </Text>
         <Text style={styles.oddLabel}>
-          {fight.isFinished ? (isWinner ? dictionary.winner : '—') : dictionary.betAction}
+          {fight.isFinished ? (isWinner ? dictionary.winner : '—') : bettingClosed ? 'Apostas fechadas' : dictionary.betAction}
         </Text>
       </Pressable>
     </View>
@@ -117,7 +120,7 @@ export function FightCard({ fight, onPickWinner }: FightCardProps) {
           <Text style={[styles.resultText, fight.isDraw && styles.resultTextDraw]}>
             {fight.isDraw
               ? `${dictionary.draw} — todas as apostas foram estornadas`
-              : `${dictionary.winner}: ${winnerName}`}
+              : fight.winnerId ? `${dictionary.winner}: ${winnerName}` : 'Sem vencedor confirmado'}
           </Text>
         </View>
       ) : null}

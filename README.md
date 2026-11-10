@@ -1,13 +1,13 @@
 # 🥊 Rinq.app
 
 Plataforma mobile de apostas com **moeda virtual fictícia** e **temporadas sazonais**: o mesmo
-backend e o mesmo banco atendem duas realidades diferentes, e o app troca paleta, tipografia e
+backend consulta a ESPN para MMA e usa PostgreSQL para galos, contas e apostas. O app troca paleta, tipografia e
 dicionário de termos via **EAS Update (OTA)** — sem gerar APK novo.
 
 | Temporada | `seasonType` | Interface | Vocabulário |
 |---|---|---|---|
 | 1 — MMA Humano | `HUMAN_MMA` | escura / vermelha | Lutador, Academia, Categoria, Cartel |
-| 2 — Galos | `COCKFIGHTING` | industrial / neon | Galo, Laboratório, Armamento, Danos de Batalha |
+| 2 — Galos | `ROBOT_ROOSTER` | industrial / neon | Galo, Laboratório, Armamento, Danos de Batalha |
 
 ```
 rinq-app/
@@ -47,7 +47,7 @@ npm install
 cp .env.example .env        # já vem apontando para o banco do docker
 npx prisma migrate dev      # cria as tabelas
 npm run db:generate         # gera o cliente Prisma usado pela API
-npm run db:seed             # 3 players + 1 admin + 16 competidores + 8 lutas
+npm run db:seed             # contas de demonstração, 2 galos e 1 luta
 npm run dev                 # API em http://localhost:3333
 ```
 
@@ -94,9 +94,8 @@ E-mail: admin@rinq.app
 Senha: admin12345
 ```
 
-O painel permite consultar apostas, acompanhar o card, cadastrar competidores,
-criar lutas e registrar resultados. A API continua responsável pelas odds e pela
-liquidação atômica das apostas.
+O painel permite acompanhar o card e as apostas das duas temporadas. Na temporada de galos,
+a administração cadastra competidores, cria lutas e registra resultados. O card de MMA é gerenciado pela ESPN.
 
 ---
 
@@ -203,19 +202,19 @@ em `backend/src/config/swagger.ts` e acompanha as rotas atuais da API.
 | GET | `/admin/bets` | Todas as apostas; somente `ADMIN` |
 | GET | `/competitors?season=` | Catálogo de competidores — RF02 |
 | GET | `/competitors/:id` | Detalhe do competidor |
-| POST | `/competitors` | Cadastro de competidor; somente `ADMIN` |
+| POST | `/competitors` | Cadastro de galos por `ADMIN` |
 | GET | `/fights?season=&includeFinished=&take=` | Card de lutas — RF03 |
 | GET | `/fights/:id` | Detalhe da luta |
 | GET | `/fights/odds/preview?competitorAId=&competitorBId=` | Simulação de odds — RF04 |
-| POST | `/fights` | Cria confronto; somente `ADMIN` |
-| POST | `/fights/:id/finish` | Encerra e liquida; somente `ADMIN` |
+| POST | `/fights` | Cria confronto de galos por `ADMIN` |
+| POST | `/fights/:id/finish` | Encerra e liquida uma luta de galos por `ADMIN` |
 | POST | `/bets` | Efetiva aposta; somente `PLAYER` — RF05 |
 | GET | `/bets/:id` | Detalhe da própria aposta ou acesso `ADMIN` |
 
 ### Papéis e permissões
 
 - `PLAYER`: consultar temporada, competidores e lutas; criar apostas; consultar apenas suas apostas.
-- `ADMIN`: cadastrar competidores, criar e encerrar lutas, consultar apostas e operar o painel administrativo.
+- `ADMIN`: gerenciar os galos e suas lutas, consultar apostas e operar o painel administrativo.
 - O cadastro público nunca aceita `role`; uma conta só pode virar `ADMIN` por seed ou operação administrativa protegida.
 - O `userId` não é aceito para efetivar aposta: ele é obtido do JWT autenticado.
 
@@ -224,7 +223,7 @@ Exemplos:
 ```bash
 # apostar
 curl -X POST localhost:3333/bets -H 'Content-Type: application/json' -d '{
-  "userId": "<id>", "fightId": "<id>", "chosenWinnerId": "<id>", "amount": 200
+  "fightId": "<id>", "chosenWinnerId": "<id>", "amount": 200
 }'
 
 # encerrar a luta (sem winnerId = empate, estorna tudo)
@@ -243,10 +242,34 @@ odd     = 1 / (prob · 1,10)                  ← margem da casa de 10%
 piso    = 1,05                               ← odd mínima
 ```
 
-Exemplo real do seed: cartel `14-3-1` vs `10-6-0` → odds **1.63** e **2.06**
-(margem implícita de 9,9%). As odds são **congeladas** na criação do card e
-gravadas na aposta (`oddAtPlacement`), então mudanças posteriores não alteram
-bilhetes já emitidos.
+As odds das lutas de galos são congeladas na criação do card. Para MMA, o Rinq calcula
+a cotação com os cartéis publicados pela ESPN e a confirma ao aceitar a aposta. O app envia
+`expectedOdd` para pedir uma nova confirmação se a cotação exibida tiver mudado. O valor
+gravado em `oddAtPlacement` determina o pagamento de cada bilhete.
+
+---
+
+## MMA com dados da ESPN
+
+- O card usa o [Scoreboard de MMA da ESPN](https://site.api.espn.com/apis/site/v2/sports/mma/all/scoreboard).
+  A janela é de 120 dias para próximas lutas e, com `includeFinished=true`, inclui os últimos 90 dias.
+  O catálogo lista os lutadores presentes nos cards futuros publicados.
+- `GET /competitors/espn-<athleteId>` retorna o perfil, estatísticas, histórico e próximas lutas. No app,
+  toque no nome de um lutador no card para abrir esse perfil. A cobertura histórica varia por atleta.
+- `GET /fights/espn-<eventId>-<competitionId>` consulta um confronto. Para apostar, envie esse identificador
+  e o `chosenWinnerId` no formato `espn-<athleteId>`. O backend valida a escalação e o status na ESPN antes do débito.
+- O backend consulta o resultado das apostas pendentes a cada minuto, após concluir a rodada anterior.
+  Vitória paga o retorno do bilhete. Empate, *no contest*, cancelamento confirmado ou troca de adversário
+  estornam a aposta. Falhas de comunicação e resultados inconclusivos mantêm o bilhete pendente para nova consulta.
+- Os endpoints da ESPN respondem sem chave e podem mudar. As consultas de leitura usam cache em memória
+  de até um minuto. Se a ESPN estiver indisponível, as rotas afetadas respondem `503 ESPN_UNAVAILABLE`.
+
+### Atualização de um banco existente
+
+Pare a API e, em `backend/`, execute `npx prisma migrate deploy` e `npm run db:generate` antes de subir
+a nova versão. A migração remove o catálogo fictício de MMA, mantém os bilhetes antigos consultáveis
+e estorna as apostas de MMA ainda pendentes. Os bilhetes retêm IDs, nomes, horário, seleção e odds para
+consulta e liquidação, enquanto o perfil e as estatísticas vêm da ESPN. O seed recria os dados de demonstração.
 
 ---
 
@@ -257,7 +280,7 @@ backend/src/
 ├── controllers/   ciclo HTTP: valida (zod), orquestra, responde
 ├── models/        persistência via Prisma + transações
 ├── views/         serializadores JSON (DTOs)
-├── services/      regra de negócio pura (OddsService)
+├── services/      odds, integração ESPN e consulta de resultados
 ├── config/env.ts  temporada ativa e variáveis
 ├── config/swagger.ts especificação OpenAPI e Swagger UI
 ├── lib/           client Prisma, erros de domínio, validação
@@ -269,10 +292,9 @@ Regras que valem a pena conhecer:
 - **Atomicidade (RNF02):** apostar debita a carteira com a checagem de saldo dentro do
   `WHERE` (`updateMany`), dentro de `prisma.$transaction`. Testado com 10 apostas
   simultâneas de 200 moedas em um saldo de 1500 → 7 aceitas, 3 recusadas, saldo final 100.
-- **Encerrar luta** atualiza cartel dos dois competidores **e** liquida todas as apostas na
+- **Encerrar luta de galos** atualiza o cartel dos dois competidores **e** liquida todas as apostas na
   mesma transação. Empate (`winnerId` nulo) estorna todos os valores (`VOID`).
-- **Schema agnóstico:** `specWeight` e `specStyle` são "Categoria/Estilo" no MMA e
-  "Classe de Chassi/Armamento" nos robôs — quem dá o nome é o dicionário do app.
+- O DTO de competidor é comum às duas temporadas. O tema define os rótulos de `specWeight` e `specStyle`.
 
 ## 🎨 Camada de tema (mobile)
 
@@ -299,7 +321,7 @@ Nenhum componente tem cor ou texto fixo: tudo vem de `useSeasonTheme()`
 |---|---|
 | `npm run dev` | API com reload |
 | `npm run typecheck` | TypeScript estrito |
-| `npm run db:seed` | Repopula as duas temporadas |
+| `npm run db:seed` | Recria as contas de demonstração e o card de galos |
 | `npm run db:reset` | Zera o banco e roda migrações + seed |
 | `npm run db:studio` | Prisma Studio (GUI do banco) |
 

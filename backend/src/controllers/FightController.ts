@@ -5,7 +5,7 @@ import { CompetitorModel } from '../models/CompetitorModel.js'
 import { OddsService } from '../services/OddsService.js'
 import { FightView } from '../views/FightView.js'
 import { BetView } from '../views/BetView.js'
-import { NotFoundError } from '../lib/errors.js'
+import { NotFoundError, ValidationError } from '../lib/errors.js'
 import {
   booleanQuerySchema,
   idParamSchema,
@@ -14,6 +14,8 @@ import {
   seasonTypeSchema,
 } from '../lib/validation.js'
 import { getActiveSeason } from '../config/runtime.js'
+import { EspnMmaService, espnAthleteId, espnFightId } from '../services/EspnMmaService.js'
+import { SeasonType } from '../../generated/prisma/enums.js'
 
 const listFightsQuerySchema = seasonQuerySchema.extend({
   includeFinished: booleanQuerySchema.default(false),
@@ -35,15 +37,21 @@ const finishFightSchema = z.object({
   winnerId: z.uuid().nullish(),
 })
 
+const fighterIdSchema = z.union([z.uuid(), z.string().regex(espnAthleteId)])
 const oddsPreviewQuerySchema = z.object({
-  competitorAId: z.uuid(),
-  competitorBId: z.uuid(),
+  competitorAId: fighterIdSchema,
+  competitorBId: fighterIdSchema,
 })
+const readFightIdSchema = z.object({ id: z.union([z.uuid(), z.string().regex(espnFightId)]) })
 
 export class FightController {
   static async list(request: FastifyRequest, reply: FastifyReply) {
     const query = parseOrThrow(listFightsQuerySchema, request.query)
 
+    if (query.season === SeasonType.HUMAN_MMA) {
+      const fights = await EspnMmaService.listFights(query.includeFinished, query.take)
+      return reply.send({ seasonType: query.season, total: fights.length, fights })
+    }
     const fights = await FightModel.listBySeason({
       seasonType: query.season,
       includeFinished: query.includeFinished,
@@ -54,7 +62,8 @@ export class FightController {
   }
 
   static async show(request: FastifyRequest, reply: FastifyReply) {
-    const { id } = parseOrThrow(idParamSchema, request.params)
+    const { id } = parseOrThrow(readFightIdSchema, request.params)
+    if (espnFightId.test(id)) return reply.send(await EspnMmaService.findFight(id))
     const fight = await FightModel.findById(id)
     if (!fight) throw new NotFoundError('Luta')
     return reply.send(FightView.render(fight))
@@ -100,6 +109,20 @@ export class FightController {
 
   static async oddsPreview(request: FastifyRequest, reply: FastifyReply) {
     const query = parseOrThrow(oddsPreviewQuerySchema, request.query)
+
+    const externalA = espnAthleteId.test(query.competitorAId)
+    const externalB = espnAthleteId.test(query.competitorBId)
+    if (externalA !== externalB) throw new ValidationError('Os competidores precisam pertencer à mesma temporada.')
+    if (externalA) {
+      const [a, b] = await Promise.all([
+        EspnMmaService.findCompetitor(query.competitorAId),
+        EspnMmaService.findCompetitor(query.competitorBId),
+      ])
+      if (!a.competitor.recordAvailable || !b.competitor.recordAvailable) {
+        throw new ValidationError('A ESPN ainda não publicou o cartel dos dois lutadores.')
+      }
+      return reply.send(OddsService.buildOdds(a.competitor.record, b.competitor.record))
+    }
 
     const [competitorA, competitorB] = await Promise.all([
       CompetitorModel.findById(query.competitorAId),

@@ -9,6 +9,7 @@ import { prisma } from './lib/prisma.js'
 import { AppError } from './lib/errors.js'
 import { SeasonController } from './controllers/SeasonController.js'
 import { CompetitorController } from './controllers/CompetitorController.js'
+import { startMmaSettlement } from './services/MmaSettlement.js'
 import { FightController } from './controllers/FightController.js'
 import { BetController } from './controllers/BetController.js'
 import { AuthController } from './controllers/AuthController.js'
@@ -80,6 +81,7 @@ export function buildServer(): FastifyInstance {
 
   app.setErrorHandler((error: FastifyError, request: FastifyRequest, reply: FastifyReply) => {
     if (error instanceof AppError) {
+      if (error.code === 'ESPN_UNAVAILABLE') request.log.warn({ err: error }, 'Falha na consulta à ESPN')
       return reply.status(error.statusCode).send({
         error: { code: error.code, message: error.message, details: error.details ?? null },
       })
@@ -148,6 +150,7 @@ export function buildServer(): FastifyInstance {
     await prisma.$disconnect()
   })
 
+  startMmaSettlement(app)
   return app
 }
 

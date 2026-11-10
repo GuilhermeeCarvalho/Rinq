@@ -14,6 +14,7 @@ export interface User {
 
 export interface Competitor {
   id: string
+  recordAvailable?: boolean
   name: string
   team: string
   seasonType: Season
@@ -23,6 +24,7 @@ export interface Competitor {
 
 export interface Fight {
   id: string
+  bettingOpen?: boolean
   seasonType: Season
   scheduledAt: string
   isFinished: boolean

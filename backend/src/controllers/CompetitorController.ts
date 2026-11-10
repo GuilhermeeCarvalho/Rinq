@@ -5,6 +5,10 @@ import { CompetitorView } from '../views/CompetitorView.js'
 import { NotFoundError } from '../lib/errors.js'
 import { idParamSchema, parseOrThrow, seasonQuerySchema, seasonTypeSchema } from '../lib/validation.js'
 import { getActiveSeason } from '../config/runtime.js'
+import { EspnMmaService, espnAthleteId } from '../services/EspnMmaService.js'
+import { SeasonType } from '../../generated/prisma/enums.js'
+
+const readCompetitorIdSchema = z.object({ id: z.union([z.uuid(), z.string().regex(espnAthleteId)]) })
 
 const createCompetitorSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -30,17 +34,20 @@ export class CompetitorController {
 
   static async list(request: FastifyRequest, reply: FastifyReply) {
     const { season } = parseOrThrow(seasonQuerySchema, request.query)
-    const competitors = await CompetitorModel.listBySeason(season)
+    const competitors = season === SeasonType.HUMAN_MMA
+      ? await EspnMmaService.listCompetitors()
+      : CompetitorView.renderMany(await CompetitorModel.listBySeason(season))
 
     return reply.send({
       seasonType: season,
       total: competitors.length,
-      competitors: CompetitorView.renderMany(competitors),
+      competitors,
     })
   }
 
   static async show(request: FastifyRequest, reply: FastifyReply) {
-    const { id } = parseOrThrow(idParamSchema, request.params)
+    const { id } = parseOrThrow(readCompetitorIdSchema, request.params)
+    if (espnAthleteId.test(id)) return reply.send(await EspnMmaService.fighterDetails(id))
     const competitor = await CompetitorModel.findById(id)
     if (!competitor) throw new NotFoundError('Competidor')
     return reply.send(CompetitorView.render(competitor))

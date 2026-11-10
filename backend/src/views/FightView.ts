@@ -6,6 +6,8 @@ import type { CompetitorDTO } from './CompetitorView.js'
 
 export interface FightDTO {
   id: string
+  eventName?: string
+  bettingOpen?: boolean
   seasonType: SeasonType
   scheduledAt: string
   isFinished: boolean

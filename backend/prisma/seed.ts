@@ -8,27 +8,6 @@ import { hashPassword } from '../src/lib/password.js'
 
 type SeedCompetitor = Omit<CreateCompetitorInput, 'seasonType'>
 
-const DEFAULT_MMA_ROSTER: SeedCompetitor[] = [
-  {
-    name: "Vinícius 'Machado' Torres",
-    team: 'Chute Boxe',
-    specWeight: 'Peso Médio · 84 kg',
-    specStyle: 'Muay Thai',
-    wins: 14,
-    losses: 3,
-    draws: 1,
-  },
-  {
-    name: "Caio 'Pitbull' Ferrari",
-    team: 'American Top Team',
-    specWeight: 'Peso Médio · 84 kg',
-    specStyle: 'Wrestling',
-    wins: 10,
-    losses: 6,
-    draws: 0,
-  },
-]
-
 const DEFAULT_ROOSTER_ROSTER: SeedCompetitor[] = [
   {
     name: "Carijó 'Fúria Caipira'",
@@ -93,7 +72,6 @@ async function main(): Promise<void> {
     role: UserRole.ADMIN,
   })
 
-  await seedSeason(SeasonType.HUMAN_MMA, DEFAULT_MMA_ROSTER)
   await seedSeason(SeasonType.ROBOT_ROOSTER, DEFAULT_ROOSTER_ROSTER)
 
   const [competitors, fights, users] = await Promise.all([

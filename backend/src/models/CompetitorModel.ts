@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma.js'
 import type { Db } from '../lib/prisma.js'
-import type { SeasonType } from '../../generated/prisma/enums.js'
+import { SeasonType } from '../../generated/prisma/enums.js'
 import type { CompetitorModel as CompetitorRow } from '../../generated/prisma/models.js'
 import { NotFoundError, ValidationError } from '../lib/errors.js'
 
@@ -37,6 +37,9 @@ export class CompetitorModel {
   }
 
   static async create(input: CreateCompetitorInput, db: Db = prisma): Promise<CompetitorRow> {
+    if (input.seasonType !== SeasonType.ROBOT_ROOSTER) {
+      throw new ValidationError('Os lutadores de MMA são fornecidos pela ESPN.')
+    }
     return db.competitor.create({
       data: {
         name: input.name,

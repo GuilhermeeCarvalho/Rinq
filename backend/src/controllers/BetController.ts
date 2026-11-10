@@ -6,11 +6,13 @@ import { NotFoundError } from '../lib/errors.js'
 import { idParamSchema, parseOrThrow } from '../lib/validation.js'
 import { requireAuth, requireRole } from '../lib/auth.js'
 import { ForbiddenError } from '../lib/errors.js'
+import { espnAthleteId, espnFightId } from '../services/EspnMmaService.js'
 import { UserRole } from '../../generated/prisma/enums.js'
 
 const placeBetSchema = z.object({
-  fightId: z.uuid(),
-  chosenWinnerId: z.uuid(),
+  fightId: z.union([z.uuid(), z.string().regex(espnFightId)]),
+  chosenWinnerId: z.union([z.uuid(), z.string().regex(espnAthleteId)]),
+  expectedOdd: z.number().positive().optional(),
   amount: z
     .number('Informe o valor da aposta em moedas.')
     .int('A aposta deve ser em moedas inteiras.')

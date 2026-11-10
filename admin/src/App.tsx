@@ -108,18 +108,22 @@ function Dashboard({
   async function load() {
     setLoading(true)
     try {
-      const [fightResponse, competitorResponse, betResponse, userResponse] = await Promise.all([
+      const [fightResponse, competitorResponse, betResponse, userResponse] = await Promise.allSettled([
         request<{ fights: Fight[] }>(`/fights?includeFinished=true&take=100&season=${season}`),
         request<{ competitors: Competitor[] }>(`/competitors?season=${season}`),
         request<{ bets: Bet[] }>(`/admin/bets?season=${season}`),
         request<{ users: User[] }>('/admin/users'),
       ])
-      setFights(fightResponse.fights)
-      setCompetitors(competitorResponse.competitors)
-      setBets(betResponse.bets)
-      setUsers(userResponse.users)
-    } catch (cause) {
-      setNotice(cause instanceof Error ? cause.message : 'Falha ao carregar dados.')
+      setFights(fightResponse.status === 'fulfilled' ? fightResponse.value.fights : [])
+      setCompetitors(competitorResponse.status === 'fulfilled' ? competitorResponse.value.competitors : [])
+      if (betResponse.status === 'fulfilled') setBets(betResponse.value.bets)
+      if (userResponse.status === 'fulfilled') setUsers(userResponse.value.users)
+      const failure = [fightResponse, competitorResponse, betResponse, userResponse]
+        .find((response) => response.status === 'rejected')
+      if (failure) {
+        const cause: unknown = failure.reason
+        setNotice(cause instanceof Error ? cause.message : 'Falha ao carregar dados.')
+      }
     } finally {
       setLoading(false)
     }
@@ -333,6 +337,7 @@ function Dashboard({
             {active === 'fights' && (
               <FightsView
                 fights={[...activeFights, ...finishedFights]}
+                readOnly={season === 'HUMAN_MMA'}
                 onFinish={finishFight}
                 onCreate={() => setShowFight(true)}
                 onReschedule={(f) => setReschedulingFight(f)}
@@ -342,6 +347,7 @@ function Dashboard({
             {active === 'competitors' && (
               <CompetitorsView
                 competitors={competitors}
+                readOnly={season === 'HUMAN_MMA'}
                 onCreate={() => setShowCompetitor(true)}
                 onEdit={(c) => setEditingCompetitor(c)}
                 onDelete={handleDeleteCompetitor}

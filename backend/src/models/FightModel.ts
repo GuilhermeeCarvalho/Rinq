@@ -1,7 +1,7 @@
 import { prisma } from '../lib/prisma.js'
 import type { Db } from '../lib/prisma.js'
 import type { Prisma } from '../../generated/prisma/client.js'
-import { BetStatus, type SeasonType } from '../../generated/prisma/enums.js'
+import { BetStatus, SeasonType } from '../../generated/prisma/enums.js'
 import { CompetitorModel } from './CompetitorModel.js'
 import { BetModel } from './BetModel.js'
 import type { SettlementSummary } from './BetModel.js'
@@ -59,6 +59,9 @@ export class FightModel {
   }
 
   static async create(input: CreateFightInput, db: Db = prisma): Promise<FightWithCompetitors> {
+    if (input.seasonType !== SeasonType.ROBOT_ROOSTER) {
+      throw new ValidationError('As lutas de MMA são fornecidas pela ESPN.')
+    }
     if (input.competitorAId === input.competitorBId) {
       throw new ValidationError('Um competidor não pode lutar contra si mesmo.')
     }

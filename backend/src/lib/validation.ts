@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { SeasonType } from '../../generated/prisma/enums.js'
-import { env } from '../config/env.js'
+import { getActiveSeason } from '../config/runtime.js'
 import { ValidationError } from './errors.js'
 
 /** RNF05 — nada entra nos Models sem passar por um schema. */
@@ -22,7 +22,7 @@ export const idParamSchema = z.object({ id: z.uuid('Identificador inválido.') }
 
 /** `?season=` é opcional: sem ele, vale a temporada ativa do servidor. */
 export const seasonQuerySchema = z.object({
-  season: seasonTypeSchema.default(env.activeSeason),
+  season: seasonTypeSchema.default(getActiveSeason),
 })
 
 export const booleanQuerySchema = z

@@ -3,11 +3,13 @@ import type { Competitor } from '../types'
 
 export function CompetitorsView({
   competitors,
+  readOnly,
   onCreate,
   onEdit,
   onDelete,
 }: {
   competitors: Competitor[]
+  readOnly: boolean
   onCreate: () => void
   onEdit: (competitor: Competitor) => void
   onDelete: (competitor: Competitor) => void
@@ -19,9 +21,11 @@ export function CompetitorsView({
           <p className="eyebrow">ROSTER DA TEMPORADA</p>
           <h3>{competitors.length} competidores ativos</h3>
         </div>
-        <button className="button button-primary" onClick={onCreate}>
-          <Plus size={17} /> Novo competidor
-        </button>
+        {readOnly ? <span>Lutadores do card da ESPN</span> : (
+          <button className="button button-primary" onClick={onCreate}>
+            <Plus size={17} /> Novo competidor
+          </button>
+        )}
       </div>
       <div className="competitor-grid">
         {competitors.map((competitor) => (
@@ -35,12 +39,12 @@ export function CompetitorsView({
               </small>
             </div>
             <div className="record">
-              <b>{competitor.record.wins}</b>
+              <b>{competitor.recordAvailable === false ? '—' : competitor.record.wins}</b>
               <span>VITÓRIAS</span>
-              <b>{competitor.record.losses}</b>
+              <b>{competitor.recordAvailable === false ? '—' : competitor.record.losses}</b>
               <span>DERROTAS</span>
             </div>
-            <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+            {!readOnly && <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
               <button
                 className="small-button"
                 style={{ flex: 1 }}
@@ -60,7 +64,7 @@ export function CompetitorsView({
               >
                 <Trash2 size={13} />
               </button>
-            </div>
+            </div>}
           </div>
         ))}
       </div>

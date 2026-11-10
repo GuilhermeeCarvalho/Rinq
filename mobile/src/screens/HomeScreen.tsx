@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { api, API_BASE_URL, ApiError } from '../api/client'
 import type { CompetitorDTO, FightDTO, UserDTO } from '../api/client'
 import { FightCard } from '../components/FightCard'
+import { FighterDetails } from '../components/FighterDetails'
 import { BetSheet } from '../components/BetSheet'
 import type { BetSelection } from '../components/BetSheet'
 import { UpdateBanner } from '../components/UpdateBanner'
@@ -36,6 +37,7 @@ export function HomeScreen({ onNavigateToBets }: HomeScreenProps = {}) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
+  const [fighter, setFighter] = useState<CompetitorDTO | null>(null)
   const [selection, setSelection] = useState<BetSelection | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [betError, setBetError] = useState<string | null>(null)
@@ -45,19 +47,19 @@ export function HomeScreen({ onNavigateToBets }: HomeScreenProps = {}) {
   const activeSeason = theme.key
 
   const loadData = useCallback(async () => {
-    try {
-      const [me, card, myBets] = await Promise.all([
-        api.getMe(),
-        api.getFights(activeSeason),
-        api.getMyBets().catch(() => null),
-      ])
-      setUser(me)
-      setFights(card.fights)
-      if (myBets) setOpenBets(myBets.bets.filter((bet) => bet.status === 'PENDING').length)
-      setLoadError(null)
-    } catch (cause) {
-      setLoadError(cause instanceof ApiError ? cause.message : 'Falha ao carregar dados.')
+    const [me, card, myBets] = await Promise.allSettled([
+      api.getMe(),
+      api.getFights(activeSeason),
+      api.getMyBets(),
+    ])
+    if (me.status === 'fulfilled') setUser(me.value)
+    if (myBets.status === 'fulfilled') {
+      setOpenBets(myBets.value.bets.filter((bet) => bet.status === 'PENDING').length)
     }
+    setFights(card.status === 'fulfilled' ? card.value.fights : [])
+    const failure = [card, me].find((result) => result.status === 'rejected')
+    const cause: unknown = failure?.reason
+    setLoadError(failure ? (cause instanceof ApiError ? cause.message : 'Falha ao carregar dados.') : null)
   }, [activeSeason])
 
   useEffect(() => {
@@ -101,6 +103,7 @@ export function HomeScreen({ onNavigateToBets }: HomeScreenProps = {}) {
           fightId: selection.fight.id,
           chosenWinnerId: selection.competitor.id,
           amount,
+          expectedOdd: selection.odd,
         })
         setUser({ ...user, virtualCoins: result.balance })
         setOpenBets((count) => (count ?? 0) + 1)
@@ -240,7 +243,13 @@ export function HomeScreen({ onNavigateToBets }: HomeScreenProps = {}) {
           data={fights}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={header}
-          renderItem={({ item }) => <FightCard fight={item} onPickWinner={handlePickWinner} />}
+          renderItem={({ item }) => (
+            <FightCard
+              fight={item}
+              onPickWinner={handlePickWinner}
+              onViewFighter={item.seasonType === 'HUMAN_MMA' ? setFighter : undefined}
+            />
+          )}
           ListEmptyComponent={
             loadError ? null : (
               <View style={styles.emptyCard}>
@@ -284,6 +293,8 @@ export function HomeScreen({ onNavigateToBets }: HomeScreenProps = {}) {
           <Text style={styles.toastText}>{feedback}</Text>
         </View>
       ) : null}
+
+      {fighter ? <FighterDetails fighter={fighter} onClose={() => setFighter(null)} /> : null}
 
       <BetSheet
         selection={selection}
