@@ -25,7 +25,7 @@ export interface HomeScreenProps {
 }
 
 export function HomeScreen({ onNavigateToBets }: HomeScreenProps = {}) {
-  const { theme, dictionary, season, refresh } = useSeasonTheme()
+  const { theme, dictionary, refresh } = useSeasonTheme()
   const styles = useMemo(() => createStyles(theme), [theme])
   const insets = useSafeAreaInsets()
   const ota = useOtaUpdates()
@@ -54,7 +54,7 @@ export function HomeScreen({ onNavigateToBets }: HomeScreenProps = {}) {
     ])
     if (me.status === 'fulfilled') setUser(me.value)
     if (myBets.status === 'fulfilled') {
-      setOpenBets(myBets.value.bets.filter((bet) => bet.status === 'PENDING').length)
+      setOpenBets(myBets.value.bets.filter((bet) => bet.status === 'PENDING' && bet.fight.seasonType === activeSeason).length)
     }
     setFights(card.status === 'fulfilled' ? card.value.fights : [])
     const failure = [card, me].find((result) => result.status === 'rejected')
@@ -251,7 +251,7 @@ export function HomeScreen({ onNavigateToBets }: HomeScreenProps = {}) {
             />
           )}
           ListEmptyComponent={
-            loadError ? null : (
+            loadError ? <></> : (
               <View style={styles.emptyCard}>
                 <Text style={styles.emptyIcon}>{dictionary.tabFightsIcon}</Text>
                 <Text style={styles.emptyTitle}>{dictionary.emptyState}</Text>

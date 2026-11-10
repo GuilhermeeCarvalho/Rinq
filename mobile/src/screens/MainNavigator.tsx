@@ -16,7 +16,7 @@ type TabType = 'fights' | 'bets' | 'profile'
 const LOGO_HEIGHT = 40
 
 export function MainNavigator({ onLogout }: MainNavigatorProps) {
-  const { theme, dictionary } = useSeasonTheme()
+  const { theme, dictionary, toggleModality } = useSeasonTheme()
   const insets = useSafeAreaInsets()
   const [activeTab, setActiveTab] = useState<TabType>('fights')
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
@@ -41,7 +41,15 @@ export function MainNavigator({ onLogout }: MainNavigatorProps) {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
-        <View style={styles.brandBlock}>
+        <Pressable
+          style={styles.brandBlock}
+          accessibilityRole="button"
+          accessibilityLabel={`Alternar para ${theme.key === 'HUMAN_MMA' ? 'galos' : 'MMA'}`}
+          onPress={() => {
+            Keyboard.dismiss()
+            toggleModality()
+          }}
+        >
           <Image
             source={theme.logo}
             accessibilityLabel={`${dictionary.brandMain} ${dictionary.brandSub}`}
@@ -49,7 +57,7 @@ export function MainNavigator({ onLogout }: MainNavigatorProps) {
             style={{ height: LOGO_HEIGHT, width: LOGO_HEIGHT * theme.logoAspectRatio }}
           />
           <Text style={styles.brandSeasonLabel}>{dictionary.seasonBadge}</Text>
-        </View>
+        </Pressable>
 
         <Pressable
           accessibilityRole="button"
@@ -62,7 +70,7 @@ export function MainNavigator({ onLogout }: MainNavigatorProps) {
         </Pressable>
       </View>
 
-      <View style={styles.content}>
+      <View key={theme.key} style={styles.content}>
         {activeTab === 'fights' ? (
           <HomeScreen onNavigateToBets={() => setActiveTab('bets')} />
         ) : activeTab === 'bets' ? (

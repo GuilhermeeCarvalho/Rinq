@@ -19,11 +19,16 @@ interface ThemeContextValue {
   isLoading: boolean
   error: string | null
   refresh: () => Promise<void>
+  toggleModality: () => void
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [activeKey, setActiveKey] = useState<SeasonKey>(FALLBACK_SEASON)
+  const toggleModality = useCallback(() => {
+    setActiveKey((current) => current === 'HUMAN_MMA' ? 'ROBOT_ROOSTER' : 'HUMAN_MMA')
+  }, [])
   const [season, setSeason] = useState<SeasonDTO | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -45,7 +50,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     void refresh()
   }, [refresh])
 
-  const activeKey: SeasonKey = season?.seasonType ?? FALLBACK_SEASON
   const theme = THEMES[activeKey]
 
   const value = useMemo<ThemeContextValue>(
@@ -56,8 +60,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       error,
       refresh,
+      toggleModality,
     }),
-    [theme, season, isLoading, error, refresh],
+    [theme, season, isLoading, error, refresh, toggleModality],
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

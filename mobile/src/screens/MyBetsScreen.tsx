@@ -28,12 +28,12 @@ export function MyBetsScreen() {
   const loadBets = useCallback(async () => {
     try {
       const response = await api.getMyBets()
-      setBets(response.bets)
+      setBets(response.bets.filter((bet) => bet.fight.seasonType === theme.key))
       setError(null)
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Falha ao carregar suas apostas.')
     }
-  }, [])
+  }, [theme.key])
 
   useEffect(() => {
     let mounted = true
